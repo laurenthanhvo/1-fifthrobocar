@@ -1,4 +1,4 @@
-# UCSD RoboCar — Power On + Camera Feed Quickstart
+# UCSD RoboRacer (1/5 Off-Road RoboCar)
 
 This README walks through:
 1) Powering on the RoboCar (Jetson AGX)
