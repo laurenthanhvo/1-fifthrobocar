@@ -21,6 +21,7 @@ This README walks through:
 
 2. **Verify power is connected**
    - Ensure the car is connected to a **14.8V battery** or a valid **power source**.
+   - **Safety:** Make sure the **14.8V battery is connected to the battery alarm** (low-voltage alarm) before turning the car on.
 
 3. **Turn on main power**
    - Press the **main power button** down.
