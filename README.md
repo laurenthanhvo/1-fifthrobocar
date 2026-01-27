@@ -1,2 +1,1 @@
-# 1-fifthrobocar
-DSC 190 Special Capstone W26
+# 1/5th Off-road Roboracer 
