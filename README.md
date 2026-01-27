@@ -44,15 +44,24 @@ You will run commands in **two terminals**.
 ### Terminal #1 (SSH + Start Stream)
 
 1. SSH into the Jetson:
+
+   ```bash
    ssh jetson@192.168.11.156
+   ```
 
-2. Enter the password when prompted.
+3. Enter the password when prompted.
 
-3. Go to the camera fusion directory:
+4. Go to the camera fusion directory:
+
+   ```bash
    cd ece191/Camera_fusion2025/src/
+   ```
 
-4. Run the streaming script:
+5. Run the streaming script:
+
+   ```bash
    stream_UVC.py
+   ```
 
 ---
 
