@@ -95,6 +95,30 @@ You will run commands in **two terminals**.
 
 ---
 
+### Terminal #3 (Accessing Camera)
+
+1. Open a **new terminal window**.
+
+2. Go to this directory:
+
+   ```bash
+   cd ece191/Camera_fusion2025/src/
+   ```
+
+3. Open this python file using this command:
+
+   ```bash
+   python3 betterYOLOscript.py
+   ```
+
+4. After prompted with the available models, choose **Model 5 (Zhenyu_yolo_12(fast, fine_tuned 9k).pt (5.2 MB))**
+
+   ```bash
+   5
+   ```
+
+   **(Note)**: Model 5 is recommended as it works the best compared to all other models, but all models will display the camera output. 
+
 ## Expected Results
 
 * Car is reachable via SSH at `192.168.11.156`
