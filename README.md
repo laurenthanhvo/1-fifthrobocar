@@ -49,6 +49,11 @@ You will run commands in **two terminals**.
    ```bash
    ssh jetson@192.168.11.156
    ```
+   
+   If this does not work, you can try this method:
+   ```bash
+   ssh jetson@ucsd-agx-03.local
+   ```
 
 3. Enter the password when prompted.
 
