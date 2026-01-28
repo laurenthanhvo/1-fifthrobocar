@@ -61,7 +61,7 @@ You will run commands in **two terminals**.
 5. Run the streaming script:
 
    ```bash
-   stream_UVC.py
+   python3 stream_UVC.py
    ```
 
 ---
