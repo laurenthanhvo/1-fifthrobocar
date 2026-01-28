@@ -121,7 +121,7 @@ You will run commands in **two terminals**.
 
 ## Expected Results
 
-* Car is reachable via SSH at `192.168.11.156`
+* Car is reachable via SSH at `192.168.11.156` or `local`
 * NoMachine shows the host as `ucsd-agx-03`
 * Camera stream script runs in Terminal #1
 * CV test runs in Terminal #2 and displays/validates the feed
