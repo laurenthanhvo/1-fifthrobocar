@@ -95,29 +95,51 @@ You will run commands in **two terminals**.
 
 ---
 
-### Terminal #3 (Accessing Camera)
+### Accessing the Color Camera
 
 1. Open a **new terminal window**.
 
-2. Go to this directory:
+2. Go into this directory:
 
    ```bash
-   cd ece191/Camera_fusion2025/src/
+   cd depthai-python/examples/ColorCamera/
    ```
 
-3. Open this python file using this command:
+3. Run the streaming script:
+   
+   ```bash
+   python3 rgb_preview.py
+   ```
+
+This shows the color camera attached to the front of the car, displaying at around 20 frames per second. 
+
+### Accessing the Monochrome Cameras
+
+These cameras shows the view from a left and right point of view in monochrome. 
+
+1. In a new (or old terminal after pressing Ctrl+C), change into this directory:
+   
+   ```bash
+   cd depthai-python/examples/MonoCamera/
+   ```
+
+2. Run this streaming script:
+   ```bash
+   python3 mono_preview.py
+   ```
+
+### Accessing the Object Tracker
+
+1. In a new terminal, change directories to this:
 
    ```bash
-   python3 betterYOLOscript.py
+   cd depthai-python/examples/ObjectTracker/
    ```
 
-4. After prompted with the available models, choose **Model 5 (Zhenyu_yolo_12(fast, fine_tuned 9k).pt (5.2 MB))**
-
+2. Run the streaming script:
    ```bash
-   5
+   python3 object_tracker.py
    ```
-
-   **(Note)**: Model 5 is recommended as it works the best compared to all other models, but all models will display the camera output. 
 
 ## Expected Results
 
