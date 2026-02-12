@@ -150,6 +150,260 @@ These cameras shows the view from a left and right point of view in monochrome.
 
 ---
 
+## 3) DonkeyCar Access + Manual Driving (Verified on `ucsd-agx-03`)
+
+This section is the correct startup flow for running DonkeyCar manual drive on the 1/5 off-road RoboCar.
+
+### Environment + Paths (verified)
+
+* Jetson host: `ucsd-agx-03` (or `ucsd-agx-03.local`)
+* User: `jetson` (**not root**)
+* Virtual env path: `~/donkey/bin/activate`
+* Car project path: `~/projects/mycars/deep_learning_car`
+* Drive entrypoint: `python manage.py drive`
+* Web UI:
+
+  * `http://ucsd-agx-03.local:8887/drive`
+  * or `http://192.168.11.156:8887/drive`
+
+---
+
+### 3.1 Start DonkeyCar (manual driving + web UI)
+
+1. SSH into Jetson:
+
+   ```bash
+   ssh jetson@ucsd-agx-03.local
+   ```
+
+   (or)
+
+   ```bash
+   ssh jetson@192.168.11.156
+   ```
+
+2. Confirm you are not root:
+
+   ```bash
+   whoami
+   ```
+
+   Expected:
+
+   ```text
+   jetson
+   ```
+
+3. Activate DonkeyCar virtual environment:
+
+   ```bash
+   source ~/donkey/bin/activate
+   ```
+
+   Optional check:
+
+   ```bash
+   which python
+   ```
+
+   Expected:
+
+   ```text
+   /home/jetson/donkey/bin/python
+   ```
+
+4. Go to the car project directory:
+
+   ```bash
+   cd ~/projects/mycars/deep_learning_car
+   ```
+
+5. (Optional) edit car overrides:
+
+   ```bash
+   nano myconfig.py
+   ```
+
+6. Start DonkeyCar:
+
+   ```bash
+   python manage.py drive
+   ```
+
+7. Open web controller in browser:
+
+   ```text
+   http://192.168.11.156:8887/drive
+   ```
+
+   (or)
+
+   ```text
+   http://ucsd-agx-03.local:8887/drive
+   ```
+
+---
+
+### 3.2 Expected healthy startup logs
+
+You should see lines like:
+
+* `using donkey v5.0.0`
+* `loading config file: .../deep_learning_car/config.py`
+* `loading personal config over-rides from myconfig.py`
+* `Starting Donkey Server...`
+* `You can now go to ucsd-agx-03.local:8887 to drive your car.`
+* `Creating VESC at port /dev/ttyACM0`
+* `Starting vehicle at 20 Hz`
+
+Camera can appear as either:
+
+* `cfg.CAMERA_TYPE MOCK` (test mode), or
+* `cfg.CAMERA_TYPE OAKD` (real OAK-D camera)
+
+Both were observed in your runs.
+
+---
+
+### 3.3 Controller notes
+
+* Connect controller directly to Jetson (USB dongle/cable) or Bluetooth.
+* In your logs, joystick input and web client connection were both working.
+* If using PS4 controller, pair via Bluetooth before running `manage.py drive`.
+
+> Note: HDMI is for display output, not controller data transport.
+
+---
+
+### 3.4 Recording behavior (what you should see)
+
+When recording toggles ON in web UI/controller, logs show:
+
+* `Recording Change = True`
+* `Setting Recording = True`
+* `recorded 10 records`, `recorded 20 records`, etc.
+
+Data is saved under:
+
+```text
+~/projects/mycars/deep_learning_car/data/tub_*/
+```
+
+with a `manifest.json` in each tub folder.
+
+---
+
+### 3.5 After collecting training data
+
+Train a simple lane-following model:
+
+```bash
+python manage.py train \
+  --tub data \
+  --model models/pilot.h5 \
+  --type linear
+```
+
+Drive with trained model:
+
+```bash
+python manage.py drive --model models/pilot.h5
+```
+
+Then switch to AI mode in the web UI.
+
+---
+
+### 3.6 Clean shutdown
+
+Stop with:
+
+```bash
+Ctrl + C
+```
+
+Expected normal shutdown lines:
+
+* `Shutting down vehicle and its parts...`
+* `Closing tub ...`
+* `Closing manifest ...`
+* Part profile summary table
+
+You may occasionally see:
+
+* `Task was destroyed but it is pending!`
+* `KeyboardInterrupt` during teardown
+
+Those appeared in your logs after force interrupts and are common when stopping active async video tasks.
+
+---
+
+### 3.7 Quick troubleshooting 
+
+#### A) `-bash: ./: Is a directory`
+
+You typed:
+
+```bash
+./ ls
+```
+
+Fix:
+
+```bash
+ls
+```
+
+#### B) `naon: command not found`
+
+Typo. Use:
+
+```bash
+nano myconfig.py
+```
+
+#### C) Running as root breaks normal flow (`conda` not found, wrong env)
+
+Use `jetson` account for DonkeyCar runtime.
+
+#### D) OAK-D warning about unsupported resolution defaulting to 800P
+
+This warning is non-fatal; startup can still succeed.
+
+#### E) `404 GET /favicon.ico`
+
+Harmless browser request, can be ignored.
+
+---
+
+### 3.8 Reference file location on Jetson
+
+Your notes/readme file can be accessed at:
+
+```bash
+cd ~/donkeycontainer
+nano donkeycar_readme.txt
+```
+
+---
+
+## One-command sequence (copy/paste)
+
+```bash
+ssh jetson@ucsd-agx-03.local
+source ~/donkey/bin/activate
+cd ~/projects/mycars/deep_learning_car
+python manage.py drive
+```
+
+Then open:
+
+```text
+http://192.168.11.156:8887/drive
+```
+
+---
+
 ## Troubleshooting (Quick Checks)
 
 * **NoMachine can’t find `ucsd-agx-03`:**
