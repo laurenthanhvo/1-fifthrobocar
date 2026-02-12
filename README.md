@@ -261,8 +261,6 @@ Camera can appear as either:
 * `cfg.CAMERA_TYPE MOCK` (test mode), or
 * `cfg.CAMERA_TYPE OAKD` (real OAK-D camera)
 
-Both were observed in your runs.
-
 ---
 
 ### 3.3 Controller notes
@@ -333,8 +331,6 @@ You may occasionally see:
 
 * `Task was destroyed but it is pending!`
 * `KeyboardInterrupt` during teardown
-
-Those appeared in your logs after force interrupts and are common when stopping active async video tasks.
 
 ---
 
