@@ -399,6 +399,132 @@ http://192.168.11.156:8887/drive
 
 ---
 
+## 4) Access LiDAR, Point Cloud, and Depth/Cameras
+
+This section covers how to access:
+
+1. Livox MID-360 LiDAR + point cloud in RViz
+2. LiDAR ROS2 topic data in terminal
+3. DepthAI depth/RGB/mono/object-tracking camera streams
+
+---
+
+### 4.1 LiDAR + Point Cloud (Livox MID-360)
+
+#### A) Connect through NoMachine first
+
+1. Open **NoMachine** and connect to:
+
+   * `192.168.11.156`
+2. Log in with the team credentials.
+3. In the VM desktop, top-right network menu (**Ethernet**) → select:
+
+   * **Profile 1**
+4. Open a terminal in the VM.
+
+---
+
+#### B) Start Livox ROS2 driver + RViz point cloud
+
+```bash
+cd ~/lidar_test/src/ws_livox/src/livox_ros_driver2
+./build.sh ROS2
+
+cd ~/lidar_test/src/ws_livox
+source install/setup.bash
+ros2 launch livox_ros_driver2 rviz_MID360_launch.py
+```
+
+> If `source install/setup.bash` fails, you are likely in the wrong folder.
+> It should be run from the workspace root: `~/lidar_test/src/ws_livox`.
+
+---
+
+### 4.2 How to check LiDAR data (distance / closeness)
+
+From a new terminal:
+
+```bash
+cd ~/lidar_test/src/ws_livox
+source install/setup.bash
+ros2 node list
+ros2 topic list
+ros2 topic echo /livox/lidar
+```
+
+* `/livox/lidar` prints a large stream of point data.
+* As objects get closer, point coordinates/ranges should reflect shorter distances in the sensor frame.
+* For easier visualization of near/far objects, use RViz point cloud view from the launch command above.
+
+---
+
+### 4.3 Access Depth, RGB, Mono (left/right), and Object Tracking Cameras
+
+Start from Jetson home terminal:
+
+#### A) Stereo depth preview
+
+```bash
+cd ~/depthai-python/examples/StereoDepth
+python3 depth_preview.py
+```
+
+#### B) Color camera preview
+
+```bash
+cd ~/depthai-python/examples/ColorCamera
+python3 rgb_preview.py
+```
+
+To inspect/edit preview size/settings:
+
+```bash
+cat rgb_preview.py
+```
+
+#### C) Object tracking
+
+```bash
+cd ~/depthai-python/examples/ObjectTracker
+python3 object_tracker.py
+python3 spatial_object_tracker.py
+```
+
+#### D) Mono cameras (left + right, black/white)
+
+```bash
+cd ~/depthai-python/examples/MonoCamera
+python3 mono_preview.py
+```
+
+---
+
+### 4.4 Quick troubleshooting
+
+* **No data in RViz / ROS topics empty**
+
+  * Confirm NoMachine session is on `192.168.11.156`
+  * Confirm Ethernet is set to **Profile 1**
+  * Re-source workspace:
+
+    ```bash
+    cd ~/lidar_test/src/ws_livox
+    source install/setup.bash
+    ```
+
+* **`build.sh` not found**
+
+  * Make sure you are in:
+    `~/lidar_test/src/ws_livox/src/livox_ros_driver2`
+
+* **DepthAI scripts not found**
+
+  * Make sure you are under:
+    `~/depthai-python/examples/...` before running each script
+
+---
+
+
 ## Troubleshooting (Quick Checks)
 
 * **NoMachine can’t find `ucsd-agx-03`:**
