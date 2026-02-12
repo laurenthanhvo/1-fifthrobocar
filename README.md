@@ -266,7 +266,6 @@ Camera can appear as either:
 ### 3.3 Controller notes
 
 * Connect controller directly to Jetson (USB dongle/cable) or Bluetooth.
-* In your logs, joystick input and web client connection were both working.
 * If using PS4 controller, pair via Bluetooth before running `manage.py drive`.
 
 > Note: HDMI is for display output, not controller data transport.
