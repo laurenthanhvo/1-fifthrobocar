@@ -524,6 +524,211 @@ python3 mono_preview.py
 
 ---
 
+Here it is as plain GitHub-flavored **Markdown** (no extra formatting). Copy/paste directly into your README:
+
+````markdown
+## 5) Camera Calibration Validation (OAK-D RGB) using Checkerboard
+
+This section documents how we validated the **front OAK-D color camera** calibration (intrinsics + distortion) using a **checkerboard**, and computed **reprojection error** for both:
+
+- **Factory calibration** stored on the OAK-D device (EEPROM)
+- **Fresh OpenCV checkerboard calibration** (for comparison)
+
+### Goal
+- Confirm the camera is already calibrated and distortion correction works (straight lines become straight).
+- Quantify calibration quality using **reprojection RMSE (pixels)**.
+- Save artifacts (images + summary) for report/writeup.
+
+### Prereqs
+- Car is powered on and you can connect via **NoMachine** and/or **SSH**.
+- OAK-D is working via DepthAI scripts.
+- Checkerboard used:
+  - **10 × 7 squares** → **9 × 6 interior corners**
+  - Square size measured: **45 mm** → `0.045 m`
+
+---
+
+### 5.1 Open RGB camera feed (sanity check)
+
+On the Jetson:
+
+```bash
+cd ~/depthai-python/examples/ColorCamera
+python3 rgb_preview.py
+````
+
+Expected:
+
+* Live RGB feed from the front OAK-D camera.
+
+---
+
+### 5.2 (Optional) Visual undistortion sanity check
+
+DepthAI provides an example undistortion script:
+
+```bash
+cd ~/depthai-python/examples/ColorCamera
+python3 rgb_undistort.py
+```
+
+Expected:
+
+* Two windows: **Distorted** (raw) and **Undistorted**
+* Undistorted image may look slightly **cropped/zoomed** (normal) because undistortion often crops valid pixels to avoid black borders.
+* Straight edges near image boundaries should appear straighter in the undistorted view.
+
+Notes:
+
+* You may see warnings like “unsupported resolution… defaulting to 800P/720P” and Qt font warnings. These are non-fatal.
+
+---
+
+### 5.3 Capture checkerboard dataset (20–60 images)
+
+We captured checkerboard images directly from the OAK-D ISP output at **1280×800**.
+
+1. Go to ColorCamera examples:
+
+```bash
+cd ~/depthai-python/examples/ColorCamera
+```
+
+2. Run the capture script:
+
+```bash
+python3 capture_checkerboard.py
+```
+
+Controls:
+
+* Press **s** in the camera window to save an image
+* Press **q** to quit cleanly
+  (Ctrl+C also exits, but prints a KeyboardInterrupt traceback—this is harmless.)
+
+Saved image location:
+
+* `~/camera_calib/images/`
+
+Quick checks:
+
+```bash
+ls ~/camera_calib/images | wc -l
+```
+
+Capture guidelines (important for good corner detection):
+
+* Fill ~30–70% of image with board (not tiny/far away)
+* Keep board fully in frame (don’t crop edges)
+* Vary pose: center + corners of FOV + near/far + tilted/skewed
+* Avoid glare and motion blur
+
+---
+
+### 5.4 Compute reprojection error + save outputs
+
+Run the validation/calibration script:
+
+```bash
+cd ~/depthai-python/examples/ColorCamera
+python3 validate_checkerboard.py
+```
+
+This script:
+
+* Detects checkerboard corners in the dataset
+* Computes reprojection error for:
+
+  * **Factory calibration** read from device EEPROM
+  * **OpenCV calibration** computed from the checkerboard images
+* Saves “before/after” undistortion images and a summary file
+
+Outputs written to:
+
+* `~/camera_calib/outputs/`
+
+Contents:
+
+* `sample_distorted.png`
+* `sample_undistorted_factory.png`
+* `sample_undistorted_opencv.png`
+* `summary.txt`
+
+Open the summary:
+
+```bash
+cat ~/camera_calib/outputs/summary.txt
+```
+
+Open the images (NoMachine GUI):
+
+```bash
+xdg-open ~/camera_calib/outputs/sample_distorted.png
+xdg-open ~/camera_calib/outputs/sample_undistorted_factory.png
+xdg-open ~/camera_calib/outputs/sample_undistorted_opencv.png
+```
+
+---
+
+### 5.5 Results we observed (example from today)
+
+Dataset:
+
+* Total images: **56**
+* Images used (corners found): **19**
+* Board interior corners: **9×6**
+* Square size: **0.045 m**
+* Image size: **1280×800**
+
+Reprojection RMSE (pixels):
+
+* **Factory (EEPROM) mean RMSE:** ~**1.16 px**
+* **OpenCV calibration mean RMSE:** ~**1.72 px**
+
+Interpretation:
+
+* Factory calibration performed **better** than our re-calibration on this dataset.
+* Conclusion: **Use the device factory calibration** for rectification + measurement pipeline.
+
+---
+
+### 5.6 Download images + outputs to your laptop (keep a copy)
+
+From your **laptop terminal** (Mac/Linux):
+
+```bash
+mkdir -p ~/Downloads/roboracer_cam_calib
+scp -r jetson@192.168.11.156:/home/jetson/camera_calib/images ~/Downloads/roboracer_cam_calib/
+scp -r jetson@192.168.11.156:/home/jetson/camera_calib/outputs ~/Downloads/roboracer_cam_calib/
+```
+
+Alternative hostname:
+
+```bash
+scp -r jetson@ucsd-agx-03.local:/home/jetson/camera_calib/images ~/Downloads/roboracer_cam_calib/
+scp -r jetson@ucsd-agx-03.local:/home/jetson/camera_calib/outputs ~/Downloads/roboracer_cam_calib/
+```
+
+---
+
+### 5.7 Troubleshooting
+
+**Corners found is low (e.g., <10 usable images):**
+
+* Board too small in frame → move closer
+* Board partially cut off → keep full board visible
+* Motion blur → hold still when pressing `s`
+* Glare/reflections → change angle / lighting
+
+**Undistorted image looks slightly zoomed:**
+
+* Normal due to undistortion cropping to valid region (depends on implementation).
+
+**KeyboardInterrupt traceback after quitting capture script:**
+
+* Happens when using Ctrl+C. Prefer pressing **q** in the window for clean exit.
+
+---
 
 ## Troubleshooting (Quick Checks)
 
