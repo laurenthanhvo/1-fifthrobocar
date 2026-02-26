@@ -524,9 +524,6 @@ python3 mono_preview.py
 
 ---
 
-Here it is as plain GitHub-flavored **Markdown** (no extra formatting). Copy/paste directly into your README:
-
-````markdown
 ## 5) Camera Calibration Validation (OAK-D RGB) using Checkerboard
 
 This section documents how we validated the **front OAK-D color camera** calibration (intrinsics + distortion) using a **checkerboard**, and computed **reprojection error** for both:
