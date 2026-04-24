@@ -1,7 +1,7 @@
 # DSC 190 Working Car Documentation
 
 **Last Updated:** 04/21/2026  
-**Project Report:** https://www.overleaf.com/5747418314vbnfgzkvfrdy#c09d00
+**Project Report:** (insert link later)
 
 > **Important:** This README contains device IPs and the Jetson password. Do not commit this publicly unless those credentials are removed or replaced with placeholders.
 
