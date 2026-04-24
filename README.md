@@ -75,12 +75,6 @@ Example:
 ssh -X jetson@10.53.210.191
 ```
 
-Password:
-
-```bash
-jetsonucsd
-```
-
 ---
 
 ## 3. Hardware and Power Notes
