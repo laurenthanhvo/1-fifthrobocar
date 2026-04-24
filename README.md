@@ -1,42 +1,188 @@
 # DSC 190 Working Car Documentation
 
-**Last Updated:** 04/21/2026  
-**Project Report:** (insert link later)
+**Last Updated:** 04/23/2026  
+**Project Report:** `<insert project report link>`
 
-> **Important:** This README contains device IPs and the Jetson password. Do not commit this publicly unless those credentials are removed or replaced with placeholders.
+This document explains how to power on the car, SSH into the Jetson, access the file system from VS Code, run DonkeyCar, use the web UI, work with the remote controller, launch camera/LiDAR nodes, use Foxglove, run sensor fusion, use GPS, and debug common issues.
+
+> **Security Note:** This documentation may contain private IP addresses, usernames, and hardware-specific paths. Do not commit passwords, private IPs, or private access details to a public GitHub repository. Replace private values with placeholders such as `<JETSON_IP>` and `<JETSON_PASSWORD>` before publishing.
 
 ---
 
-## 1. Jetson Access
+# Table of Contents
 
-### Current Jetson IP
+1. [System Overview](#1-system-overview)
+2. [Safety and Hardware Notes](#2-safety-and-hardware-notes)
+3. [Powering On the Car](#3-powering-on-the-car)
+4. [Finding the Jetson IP Address](#4-finding-the-jetson-ip-address)
+5. [SSH Access](#5-ssh-access)
+6. [Connecting Through a Hotspot](#6-connecting-through-a-hotspot)
+7. [Accessing the Jetson File System from VS Code](#7-accessing-the-jetson-file-system-from-vs-code)
+8. [USB Device Names](#8-usb-device-names)
+9. [Editing Files on the Jetson](#9-editing-files-on-the-jetson)
+10. [DonkeyCar Project Setup](#10-donkeycar-project-setup)
+11. [Running the Car with DonkeyCar](#11-running-the-car-with-donkeycar)
+12. [DonkeyCar Web UI](#12-donkeycar-web-ui)
+13. [Joystick and Remote Control](#13-joystick-and-remote-control)
+14. [DonkeyCar Configuration Notes](#14-donkeycar-configuration-notes)
+15. [Path Following and PID](#15-path-following-and-pid)
+16. [Running the Car with ROS Keyboard Teleop](#16-running-the-car-with-ros-keyboard-teleop)
+17. [ROS 2 Basic Commands](#17-ros-2-basic-commands)
+18. [Docker Basic Commands](#18-docker-basic-commands)
+19. [Camera and LiDAR ROS 2 Nodes](#19-camera-and-lidar-ros-2-nodes)
+20. [Sensor Fusion](#20-sensor-fusion)
+21. [Foxglove Visualization](#21-foxglove-visualization)
+22. [GPS and Septentrio](#22-gps-and-septentrio)
+23. [Working Version Check](#23-working-version-check)
+24. [Common Troubleshooting](#24-common-troubleshooting)
+25. [Useful Paths](#25-useful-paths)
+26. [Useful Files](#26-useful-files)
+27. [Useful References](#27-useful-references)
+28. [Future Work](#28-future-work)
+
+---
+
+# 1. System Overview
+
+The car stack currently uses:
+
+- **Jetson** as the main onboard computer
+- **DonkeyCar** for driving, path following, joystick/web control, and VESC control
+- **VESC** for motor control
+- **Radio Master controller** or **DonkeyCar web UI** for manual driving
+- **OAK camera** for image data
+- **Livox LiDAR** for point cloud data
+- **ROS 2** for sensor topics and bridge workflows
+- **Foxglove** for live visualization
+- **Septentrio GPS** for GPS data
+- **Docker** for camera, LiDAR, and sensor fusion workflows
+
+Main DonkeyCar project folder:
+
+```bash
+/home/jetson/projects/mycars/path_follower
+```
+
+Sensor fusion project folder:
+
+```bash
+/home/jetson/sensorfusion/ros2_camera_lidar_fusion
+```
+
+ROS 2 workspace:
+
+```bash
+/home/jetson/dsc190_ws
+```
+
+---
+
+# 2. Safety and Hardware Notes
+
+## Power Distribution
+
+- Do **not** plug a `5V` device into a `12V` port. This can burn the component.
+- `20V` is for the VESC because the drive motor needs higher power.
+- If the servo does not work, check the small connector on the right side.
+- The servo wiring colors are flipped on this setup:
+  - Usually, black is ground.
+  - On this setup, **white is ground**.
+  - Match **white to black**.
+- Ask for a lid if the electronics are exposed.
+
+## Safe Driving Notes
+
+Before testing movement:
+
+1. Make sure the car has enough open space.
+2. Keep the wheels lifted when testing drivetrain changes.
+3. Start with low throttle.
+4. Be ready to emergency stop.
+5. Do not run high throttle while the car is lifted off the ground.
+
+Do not set max speed too high while the car is off the ground. Without ground resistance, the car can behave unpredictably or shut down.
+
+---
+
+# 3. Powering On the Car
+
+1. Connect the main power cable on the car.
+2. Face the car forward.
+3. Press the power button on the top-left corner of the power distribution board.
+4. Press either the first or third button on the Jetson computer, which is the black box.
+
+---
+
+# 4. Finding the Jetson IP Address
+
+## Current Known Jetson IP
 
 ```bash
 192.168.139.178
 ```
 
-If you are physically on the Jetson, run:
+This IP may change depending on the network or hotspot.
+
+## If You Are Physically on the Jetson
+
+Run:
 
 ```bash
 myip
 ```
 
-If the IP address changed, run:
+Or run:
 
 ```bash
 ip addr show wlan0
 ```
 
-Look for the `inet` field. The first number string after `inet` is the Jetson IP address.
+Look for the `inet` field. The IP address is the first number string after `inet`.
+
+Example:
+
+```text
+inet 192.168.139.178/24
+```
+
+In this example, the Jetson IP is:
+
+```bash
+192.168.139.178
+```
 
 ---
 
-### SSH into the Jetson
+# 5. SSH Access
 
 From your personal computer:
 
 ```bash
-ssh -x jetson@<ip-address-of-jetson>
+ssh jetson@<JETSON_IP>
+```
+
+Example:
+
+```bash
+ssh jetson@192.168.139.178
+```
+
+If using X forwarding:
+
+```bash
+ssh -X jetson@<JETSON_IP>
+```
+
+Example:
+
+```bash
+ssh -X jetson@192.168.139.178
+```
+
+If you do not need X forwarding, use:
+
+```bash
+ssh -x jetson@<JETSON_IP>
 ```
 
 Example:
@@ -45,15 +191,9 @@ Example:
 ssh -x jetson@192.168.139.178
 ```
 
-If using X forwarding:
-
-```bash
-ssh -X jetson@<ip-address-of-jetson>
-```
-
 ---
 
-## 2. Connecting Through Hotspot
+# 6. Connecting Through a Hotspot
 
 1. Connect the Jetson to the hotspot using the Ubuntu network menu.
 2. On the Jetson, find the IP address:
@@ -62,11 +202,17 @@ ssh -X jetson@<ip-address-of-jetson>
 ifconfig
 ```
 
+or:
+
+```bash
+ip addr show wlan0
+```
+
 3. Connect your personal computer to the same hotspot.
 4. SSH into the Jetson:
 
 ```bash
-ssh -X jetson@<hotspot-ip-address>
+ssh -X jetson@<HOTSPOT_JETSON_IP>
 ```
 
 Example:
@@ -77,31 +223,339 @@ ssh -X jetson@10.53.210.191
 
 ---
 
-## 3. Hardware and Power Notes
+# 7. Accessing the Jetson File System from VS Code
 
-### Power Distribution
+This section explains how to open and browse the Jetson file system directly from a local computer using **VS Code Remote SSH**.
 
-- Do **not** plug anything that needs `5V` into `12V`. This can burn the component.
-- `20V` is for the VESC because the motor needs higher power.
-- If the servo does not work, check the small connector on the right side.
-- The servo wiring colors are flipped:
-  - Usually black is ground.
-  - On this setup, **white is ground**.
-  - Match **white to black**.
-- Ask for a lid if the electronics are exposed.
+> **Important:** Do not commit passwords or private credentials to GitHub. Replace private values with placeholders if this README is public.
 
 ---
 
-### Powering On the Jetson and Car
+## 7.1 Install the VS Code Remote SSH Extension
 
-1. Connect the main power cable on the car.
-2. Face the car forward.
-3. Press the power button on the top-left corner of the power distribution board.
-4. Press either the first or third button on the Jetson computer, which is the black box.
+On your local computer:
+
+1. Open VS Code.
+2. Go to the Extensions tab.
+3. Search for:
+
+```text
+Remote - SSH
+```
+
+4. Install the extension published by Microsoft.
 
 ---
 
-## 4. USB Device Names
+## 7.2 Test SSH from Your Local Terminal
+
+Before using VS Code, confirm SSH works from your local computer.
+
+```bash
+ssh jetson@<JETSON_IP>
+```
+
+Example:
+
+```bash
+ssh jetson@192.168.139.178
+```
+
+If this works, VS Code Remote SSH should also work.
+
+---
+
+## 7.3 Add the Jetson as a VS Code SSH Host
+
+In VS Code:
+
+1. Press:
+
+```text
+Cmd + Shift + P
+```
+
+2. Search for:
+
+```text
+Remote-SSH: Add New SSH Host
+```
+
+3. Enter:
+
+```bash
+ssh jetson@<JETSON_IP>
+```
+
+Example:
+
+```bash
+ssh jetson@192.168.139.178
+```
+
+4. When VS Code asks which SSH config file to update, select your user config file:
+
+```text
+/Users/<your-local-username>/.ssh/config
+```
+
+Example:
+
+```text
+/Users/laurenvo/.ssh/config
+```
+
+Do **not** select:
+
+```text
+/etc/ssh/ssh_config
+```
+
+---
+
+## 7.4 Confirm the SSH Config Entry
+
+VS Code should add an entry similar to this:
+
+```sshconfig
+Host ucsd-agx-03
+    HostName <JETSON_IP>
+    User jetson
+```
+
+Example:
+
+```sshconfig
+Host ucsd-agx-03
+    HostName 192.168.139.178
+    User jetson
+```
+
+You can manually edit this file from your local computer:
+
+```bash
+nano ~/.ssh/config
+```
+
+---
+
+## 7.5 Connect to the Jetson from VS Code
+
+In VS Code:
+
+1. Press:
+
+```text
+Cmd + Shift + P
+```
+
+2. Search for:
+
+```text
+Remote-SSH: Connect to Host
+```
+
+3. Select:
+
+```text
+ucsd-agx-03
+```
+
+or select the Jetson IP if that is what appears.
+
+4. If VS Code asks for the platform, choose:
+
+```text
+Linux
+```
+
+5. Enter the Jetson password when prompted.
+
+Once connected, VS Code is running remotely on the Jetson.
+
+---
+
+## 7.6 Open the Project Folder
+
+After connecting, VS Code will ask you to open a folder.
+
+To open the main project folder, enter:
+
+```text
+/home/jetson/projects/mycars
+```
+
+Then click:
+
+```text
+OK
+```
+
+This folder contains the DonkeyCar projects:
+
+```text
+/home/jetson/projects/mycars/path_follower
+/home/jetson/projects/mycars/cv_lane_follower
+```
+
+Useful files to inspect:
+
+```text
+/home/jetson/projects/mycars/path_follower/myconfig.py
+/home/jetson/projects/mycars/path_follower/manage.py
+/home/jetson/projects/mycars/path_follower/my_joystick.py
+/home/jetson/projects/mycars/cv_lane_follower/myconfig.py
+/home/jetson/projects/mycars/cv_lane_follower/manage.py
+/home/jetson/projects/mycars/cv_lane_follower/oak_camera.py
+```
+
+---
+
+## 7.7 Open the Entire Jetson Home Directory
+
+To browse more of the Jetson file system, open:
+
+```text
+/home/jetson
+```
+
+This gives access to folders such as:
+
+```text
+/home/jetson/projects
+/home/jetson/donkey
+/home/jetson/dsc190_ws
+/home/jetson/sensorfusion
+/home/jetson/david
+```
+
+---
+
+## 7.8 Open the Installed DonkeyCar Package
+
+The installed DonkeyCar package is located inside the Python environment:
+
+```text
+/home/jetson/donkey/lib/python3.8/site-packages/donkeycar
+```
+
+Useful installed DonkeyCar template files:
+
+```text
+/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/cv_control.py
+/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/path_follow.py
+/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/cfg_cv_control.py
+/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/cfg_path_follow.py
+/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/complete.py
+```
+
+Avoid editing the installed DonkeyCar package directly. Instead, edit local project files under:
+
+```text
+/home/jetson/projects/mycars
+```
+
+---
+
+## 7.9 Important VS Code Notes
+
+If the folder picker shows:
+
+```text
+/home/jetson/
+```
+
+you can manually type the folder path you want:
+
+```text
+/home/jetson/projects/mycars
+```
+
+Then click:
+
+```text
+OK
+```
+
+Do **not** click:
+
+```text
+Show Local
+```
+
+because that switches the file browser back to your local computer instead of the Jetson.
+
+---
+
+## 7.10 Remote SSH Troubleshooting
+
+### Permission denied
+
+If VS Code shows:
+
+```text
+Permission denied (publickey,password)
+```
+
+make sure the SSH config contains the correct user:
+
+```sshconfig
+User jetson
+```
+
+A correct config looks like:
+
+```sshconfig
+Host ucsd-agx-03
+    HostName <JETSON_IP>
+    User jetson
+```
+
+Then reconnect using:
+
+```text
+Remote-SSH: Connect to Host
+```
+
+### Wrong IP address
+
+If the Jetson IP changed, run this on the Jetson:
+
+```bash
+myip
+```
+
+or:
+
+```bash
+ip addr show wlan0
+```
+
+Then update your local SSH config:
+
+```bash
+nano ~/.ssh/config
+```
+
+Update:
+
+```sshconfig
+HostName <NEW_JETSON_IP>
+```
+
+### Test SSH manually
+
+From your local terminal:
+
+```bash
+ssh jetson@<JETSON_IP>
+```
+
+If this does not work, VS Code Remote SSH will not work either.
+
+---
+
+# 8. USB Device Names
 
 List all connected USB serial devices:
 
@@ -126,25 +580,39 @@ USB names can change if ports are swapped. If the car stops working after moving
 ls /dev/ttyACM*
 ```
 
-Then update the correct serial device paths in:
+To identify each device:
 
 ```bash
-~/projects/mycars/path_follower/myconfig.py
+for dev in /dev/ttyACM*; do
+    echo "----- $dev -----"
+    udevadm info -q property -n $dev | grep -E "ID_VENDOR=|ID_MODEL=|ID_SERIAL=|ID_USB_INTERFACE_NUM="
+done
+```
+
+Known device types:
+
+```text
+ChibiOS = VESC
+Septentrio = GPS
+```
+
+Example:
+
+```text
+/dev/ttyACM0 = ChibiOS = VESC
+/dev/ttyACM1 = Septentrio GPS
+/dev/ttyACM2 = Septentrio GPS
+```
+
+If needed, inspect stable serial names:
+
+```bash
+ls -l /dev/serial/by-id/
 ```
 
 ---
 
-## 5. Working Version Check
-
-To see the currently working versions for the car, including ROS 2, DepthAI C++, DepthAI Python, camera, and launch setup:
-
-```bash
-cat WORKING_VERSIONS.txt
-```
-
----
-
-## 6. Editing Files on the Jetson
+# 9. Editing Files on the Jetson
 
 Use `nano` for simple terminal editing:
 
@@ -158,77 +626,40 @@ Example:
 nano myconfig.py
 ```
 
-Use VS Code if available:
-
-```bash
-code --no-sandbox .
-```
-
-Example for opening the joystick file:
-
-```bash
-code --no-sandbox my_joystick.py
-```
-
-If working outside a GUI environment, use:
-
-```bash
-nano my_joystick.py
-```
-
-or:
+Use `vim` if preferred:
 
 ```bash
 vim myconfig.py
 ```
 
----
-
-## 7. VS Code Remote SSH Setup
-
-To browse the Jetson file system from your computer:
-
-1. Open VS Code on your computer.
-2. Install the **Remote - SSH** extension.
-3. Click the `+` button for a new remote.
-4. Add the SSH command:
+Use VS Code on the Jetson if available:
 
 ```bash
-ssh jetson@<ip-address>
+code --no-sandbox .
 ```
 
 Example:
 
 ```bash
-ssh jetson@192.168.139.178
+code --no-sandbox my_joystick.py
 ```
 
-5. Select platform:
+When editing through VS Code Remote SSH, open:
 
-```bash
-Linux
+```text
+/home/jetson/projects/mycars
 ```
+
+and edit files through the VS Code file explorer.
 
 ---
 
-## 8. DonkeyCar Setup
+# 10. DonkeyCar Project Setup
 
-Go into the DonkeyCar container directory:
-
-```bash
-cd donkeycontainer/
-```
-
-Check the environment source script:
+Activate the DonkeyCar Python environment:
 
 ```bash
-cat sourceForPathfollowercar.sh
-```
-
-Activate the environment:
-
-```bash
-source sourceForPathfollowercar.sh
+source ~/donkey/bin/activate
 ```
 
 The main DonkeyCar project path is:
@@ -237,7 +668,7 @@ The main DonkeyCar project path is:
 ~/projects/mycars/path_follower
 ```
 
-Go to the path follower car directory:
+Go to the project:
 
 ```bash
 cd ~/projects/mycars/path_follower
@@ -245,23 +676,27 @@ cd ~/projects/mycars/path_follower
 
 Important files:
 
-```bash
+```text
 manage.py
 myconfig.py
 my_joystick.py
+test_js0_mapping.py
 ```
 
 File purposes:
 
-- `manage.py`: main file used to run the car.
-- `myconfig.py`: contains car configuration, VESC configuration, serial ports, baudrate, and movement parameters.
-- `my_joystick.py`: contains controller and joystick mappings.
+- `manage.py`: main file used to run the car
+- `myconfig.py`: car configuration, VESC configuration, GPS configuration, and driving parameters
+- `my_joystick.py`: joystick/controller mapping
+- `test_js0_mapping.py`: script for checking joystick input mapping
 
 ---
 
-## 9. Running the Car with DonkeyCar and Joystick
+# 11. Running the Car with DonkeyCar
 
-Activate the DonkeyCar environment:
+## 11.1 Run with Joystick
+
+Activate the environment:
 
 ```bash
 source ~/donkey/bin/activate
@@ -273,10 +708,65 @@ Go to the path follower directory:
 cd ~/projects/mycars/path_follower
 ```
 
-Run the car with joystick enabled:
+Run with joystick enabled:
 
 ```bash
-python3 manage.py drive --js
+python manage.py drive --js
+```
+
+The `--js` flag is recommended when the physical joystick/controller is working.
+
+A working run should eventually print:
+
+```text
+Recording Change = False
+Setting Recording = False
+```
+
+---
+
+## 11.2 Run Without Joystick
+
+If the physical joystick is not working, run without `--js`:
+
+```bash
+source ~/donkey/bin/activate
+cd ~/projects/mycars/path_follower
+python manage.py drive
+```
+
+This uses the web UI for control.
+
+---
+
+## 11.3 Stop DonkeyCar
+
+Use:
+
+```text
+Ctrl-C
+```
+
+Or kill any running `manage.py drive` process:
+
+```bash
+pkill -f "manage.py drive"
+```
+
+Check if any process is still running:
+
+```bash
+ps aux | grep '[m]anage.py'
+```
+
+---
+
+# 12. DonkeyCar Web UI
+
+After running:
+
+```bash
+python manage.py drive
 ```
 
 or:
@@ -285,76 +775,100 @@ or:
 python manage.py drive --js
 ```
 
-The `--js` flag is recommended because it automatically uses the joystick.
+open the web UI:
 
-If you run without `--js`:
-
-```bash
-python3 manage.py drive
+```text
+http://ucsd-agx-03.local:8887/drive
 ```
 
-The car will default to the web UI. The terminal output will show the web URL for driving.
+If `.local` does not work, use the Jetson IP:
 
-A working run should eventually print:
+```text
+http://<JETSON_IP>:8887/drive
+```
 
-```bash
-Recording Change = False
-Setting Recording = False
+Example:
+
+```text
+http://192.168.139.178:8887/drive
+```
+
+Click:
+
+```text
+Start Vehicle
+```
+
+Then use the web joystick area to drive.
+
+Common modes:
+
+```text
+(U)ser        = manual driving
+Auto (S)teer = autopilot controls steering, user controls throttle
+Full (A)uto  = autopilot controls steering and throttle
+```
+
+For manual driving, use:
+
+```text
+(U)ser
 ```
 
 ---
 
-## 10. DonkeyCar Web UI
+# 13. Joystick and Remote Control
 
-To check if the joystick and web interface are working, open:
+## 13.1 General Remote Notes
 
-```bash
-ucsd-agx03.local:8887/drive
-```
-
-If this does not work, use the Jetson IP address in the browser instead.
-
----
-
-## 11. Joystick and Remote Control
-
-### General Remote Notes
-
-- The pairing process is in the ECE 191 documentation.
+- The pairing process is documented in the ECE 191 documentation.
 - Use the scroller to navigate.
 - Click using `select`.
 - Go into `tools` on the controller interface when debugging.
-- The right toggle controls forward and backward motion.
+- The right toggle controls forward/backward motion.
 - The left toggle controls steering.
 
 ---
 
-### Check if the Controller is Working
+## 13.2 Check if the Controller Is Working
 
-Run:
+Check joystick device:
+
+```bash
+ls /dev/input/js*
+```
+
+Test joystick input:
 
 ```bash
 jstest /dev/input/js0
 ```
 
-You can also run:
+If `jstest` is not installed:
 
 ```bash
-python3 test_js0_mapping.py
+sudo apt update
+sudo apt install joystick
 ```
 
-From the path follower directory:
+Then rerun:
+
+```bash
+jstest /dev/input/js0
+```
+
+Run the DonkeyCar joystick mapping test:
 
 ```bash
 cd ~/projects/mycars/path_follower
 python3 test_js0_mapping.py
 ```
 
-This script uses the `my_joystick.py` file and shows which controller input is being pressed.
+This script uses `my_joystick.py` and shows which controller inputs are being pressed.
 
 ---
 
-### Debugging Controller Issues
+## 13.3 Debugging Controller Issues
 
 If the controller does not work:
 
@@ -362,7 +876,7 @@ If the controller does not work:
 2. Check that the receiver is solid red, not blinking.
 3. If the controller says:
 
-```bash
+```text
 Telemetry lost
 ```
 
@@ -374,7 +888,7 @@ If the receiver on the car is blinking red for several seconds or minutes, the r
 
 ---
 
-## 12. Running the Car with the Radio Master Controller
+## 13.4 Running with the Radio Master Controller
 
 Before running the car:
 
@@ -394,7 +908,7 @@ If the receiver is blinking red, fix the pairing before driving.
 
 ---
 
-## 13. DonkeyCar Configuration Notes
+# 14. DonkeyCar Configuration Notes
 
 Open the config file:
 
@@ -403,35 +917,148 @@ cd ~/projects/mycars/path_follower
 nano myconfig.py
 ```
 
-or:
-
-```bash
-cd ~/projects/mycars/path_follower
-code --no-sandbox .
-```
-
-Things that can be configured in `myconfig.py`:
+Things commonly configured in `myconfig.py`:
 
 - VESC serial port
 - GPS serial port
+- VESC speed scaling
 - Steering scale
+- Steering offset
 - Throttle scale
 - Baudrate
-- Car movement parameters
+- Path following PID values
+- Joystick/web control settings
 
-Keep the baudrate at:
+Keep the VESC baudrate at:
 
-```bash
-115200
+```python
+VESC_BAUDRATE = 115200
 ```
 
-If the car drives forward but veers off, adjust the steering scale in `myconfig.py`.
+The current working drivetrain is:
 
-Do not run max speed at `0.6` while the car is off the ground. Without resistance from the ground, the car may crash or shut down.
+```python
+DRIVE_TRAIN_TYPE = "VESC"
+```
+
+Common VESC settings:
+
+```python
+VESC_MAX_SPEED_PERCENT = 0.2
+VESC_SERIAL_PORT = "/dev/ttyACM0"
+VESC_HAS_SENSOR = True
+VESC_START_HEARTBEAT = True
+VESC_BAUDRATE = 115200
+VESC_TIMEOUT = 0.05
+VESC_STEERING_SCALE = 0.5
+VESC_STEERING_OFFSET = 0.45
+```
+
+If the car drives forward but veers off, adjust the steering scale or steering offset in `myconfig.py`.
 
 ---
 
-## 14. ROS 2 Basic Commands
+# 15. Path Following and PID
+
+The existing path following setup lives in:
+
+```bash
+~/projects/mycars/path_follower
+```
+
+Open the config:
+
+```bash
+cd ~/projects/mycars/path_follower
+vim myconfig.py
+```
+
+or:
+
+```bash
+nano myconfig.py
+```
+
+Start the car:
+
+```bash
+source ~/donkey/bin/activate
+cd ~/projects/mycars/path_follower
+python manage.py drive --js
+```
+
+If the joystick is not working:
+
+```bash
+source ~/donkey/bin/activate
+cd ~/projects/mycars/path_follower
+python manage.py drive
+```
+
+Path recording workflow:
+
+1. Start the vehicle.
+2. Use the right trigger at least twice to record the `(0, 0)` origin point.
+3. Use the left trigger to start recording the path.
+4. Drive the car forward and around the desired route.
+5. Stop recording.
+6. Save/load the path as needed.
+7. Use path following mode to follow the recorded route.
+
+If the car goes out of control, lift it by the two back wheels.
+
+This can happen when path following is malfunctioning.
+
+Important path-following config values:
+
+```python
+PATH_FILENAME = "data/donkey_path.csv"
+PATH_MIN_DIST = 0.2
+PATH_SEARCH_LENGTH = None
+PATH_LOOK_AHEAD = 2
+PATH_LOOK_BEHIND = 1
+
+PID_P = -0.1
+PID_I = 0.005
+PID_D = -0.3
+PID_THROTTLE = 0.34
+USE_CONSTANT_THROTTLE = False
+```
+
+---
+
+# 16. Running the Car with ROS Keyboard Teleop
+
+This uses one terminal for the DonkeyCar vehicle loop and another terminal for ROS keyboard teleop.
+
+## Terminal 1: DonkeyCar Vehicle Loop
+
+```bash
+source ~/donkey/bin/activate
+cd ~/projects/mycars/path_follower
+python manage_ros_drive.py --drivetrain
+```
+
+## Terminal 2: ROS Keyboard Teleop
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+ros2 run robocar_drive_bridge keyboard_teleop
+```
+
+Keyboard controls:
+
+```text
+W = increase throttle
+A = decrease throttle / reverse if throttle becomes negative
+S = decrease steering toward -1
+D = increase steering toward 1
+```
+
+---
+
+# 17. ROS 2 Basic Commands
 
 List all visible ROS 2 topics:
 
@@ -445,13 +1072,11 @@ Echo a topic:
 ros2 topic echo <topic_name>
 ```
 
-Example:
+Examples:
 
 ```bash
 ros2 topic echo /oak/rgb/image_raw
 ```
-
-Example:
 
 ```bash
 ros2 topic echo /livox/lidar
@@ -461,7 +1086,7 @@ If nothing appears, then the topic is not publishing or the current shell/contai
 
 ---
 
-## 15. Docker Basic Commands
+# 18. Docker Basic Commands
 
 See running containers:
 
@@ -495,9 +1120,15 @@ docker exec -it ros2_camera_lidar_fusion /bin/bash
 
 ---
 
-## 16. Building and Running Camera and LiDAR ROS 2 Nodes
+# 19. Camera and LiDAR ROS 2 Nodes
 
-Go to the ROS node repository:
+The camera and LiDAR nodes are in:
+
+```bash
+~/david/real-last-try
+```
+
+Go to the repository:
 
 ```bash
 cd ~/david/real-last-try
@@ -513,7 +1144,7 @@ After the build finishes, open two terminals.
 
 ---
 
-### Terminal 1: Launch Camera Node
+## Terminal 1: Launch Camera Node
 
 ```bash
 cd ~/david/real-last-try
@@ -522,17 +1153,17 @@ bash launch_camera_host.sh
 
 ---
 
-### Terminal 2: Launch LiDAR Node
+## Terminal 2: Launch LiDAR Node
 
 The LiDAR is connected through Ethernet and usually has an IP of the form:
 
-```bash
+```text
 192.168.1.xx
 ```
 
 The last two digits are usually:
 
-```bash
+```text
 99
 ```
 
@@ -547,7 +1178,7 @@ Make sure the red-taped USB is plugged into `12V`. It can slip out.
 
 ---
 
-### Check Camera and LiDAR Topics
+## Check Camera and LiDAR Topics
 
 After both nodes are running:
 
@@ -557,7 +1188,7 @@ ros2 topic list
 
 You should see:
 
-```bash
+```text
 /livox/lidar
 /oak/rgb/image_raw
 ```
@@ -578,17 +1209,28 @@ Both should show streaming output.
 
 ---
 
-## 17. Sensor Fusion Docker Setup
+# 20. Sensor Fusion
 
-After the camera and LiDAR nodes are running, go to the sensor fusion Docker directory:
+The sensor fusion project is located at:
+
+```bash
+~/sensorfusion/ros2_camera_lidar_fusion
+```
+
+The Docker directory is:
+
+```bash
+~/sensorfusion/ros2_camera_lidar_fusion/docker
+```
+
+---
+
+## 20.1 Start Sensor Fusion Docker
+
+After the camera and LiDAR nodes are running:
 
 ```bash
 cd ~/sensorfusion/ros2_camera_lidar_fusion/docker
-```
-
-Run the Docker environment:
-
-```bash
 bash run.sh
 ```
 
@@ -598,17 +1240,29 @@ Check running containers:
 docker ps
 ```
 
-You should see three containers running.
+You should see the sensor fusion container running.
 
-Inside the Docker container, check visible ROS topics:
+---
+
+## 20.2 Enter the Sensor Fusion Container Manually
+
+```bash
+docker exec -it ros2_camera_lidar_fusion /bin/bash
+```
+
+---
+
+## 20.3 Check ROS Topics Inside the Container
+
+Inside the container:
 
 ```bash
 ros2 topic list
 ```
 
-You should be able to see the outside camera and LiDAR topics:
+You should see:
 
-```bash
+```text
 /livox/lidar
 /oak/rgb/image_raw
 ```
@@ -627,19 +1281,9 @@ ros2 topic echo /oak/rgb/image_raw
 
 ---
 
-## 18. Entering the Sensor Fusion Container Manually
+## 20.4 Build and Launch Sensor Fusion
 
-If needed, enter the running sensor fusion container manually:
-
-```bash
-docker exec -it ros2_camera_lidar_fusion /bin/bash
-```
-
----
-
-## 19. Sensor Fusion Build and Launch
-
-Inside the sensor fusion container:
+Inside the container:
 
 ```bash
 cd /ros2_ws
@@ -665,7 +1309,7 @@ Run the built package directory if needed:
 
 ---
 
-## 20. Camera Calibration
+## 20.5 Camera Calibration
 
 Inside the sensor fusion container:
 
@@ -682,25 +1326,25 @@ After calibration, values are saved on the Jetson under:
 ~/sensorfusion/ros2_camera_lidar_fusion/config
 ```
 
-The important calibration files are:
+Important calibration files:
 
-```bash
+```text
 camera_extrinsic_calibration.yaml
 camera_intrinsic_calibration.yaml
 ```
 
-Open the config directory from the Jetson:
+Open the config directory:
 
 ```bash
 cd ~/sensorfusion/ros2_camera_lidar_fusion/config
 ls
 ```
 
-More checkerboard angles are needed for better camera and LiDAR calibration.
+More checkerboard angles may be needed for better camera and LiDAR calibration.
 
 ---
 
-## 21. LiDAR Calibration
+## 20.6 LiDAR Calibration
 
 Inside the sensor fusion container:
 
@@ -717,7 +1361,7 @@ ros2 topic list
 
 You should see:
 
-```bash
+```text
 /sensorfusion_out
 ```
 
@@ -729,11 +1373,11 @@ ros2 topic echo /sensorfusion_out
 
 ---
 
-## 22. Foxglove Visualization
+# 21. Foxglove Visualization
 
 Foxglove is used instead of RViz for live ROS visualization.
 
-The flow is:
+General workflow:
 
 1. Start the camera node.
 2. Start the LiDAR node.
@@ -744,9 +1388,9 @@ The flow is:
 
 ---
 
-### Install Foxglove Bridge
+## 21.1 Install Foxglove Bridge
 
-If Foxglove bridge is not installed, run:
+If Foxglove bridge is not installed:
 
 ```bash
 sudo apt install ros-$ROS_DISTRO-foxglove-bridge
@@ -758,9 +1402,9 @@ For this car on ROS Humble:
 sudo apt install ros-humble-foxglove-bridge
 ```
 
-If you get an error like:
+If you get:
 
-```bash
+```text
 E: Unable to locate package ros-humble-foxglove-bridge
 ```
 
@@ -778,7 +1422,7 @@ sudo apt install ros-humble-foxglove-bridge
 
 ---
 
-### Launch Foxglove Bridge
+## 21.2 Launch Foxglove Bridge
 
 Run:
 
@@ -792,16 +1436,16 @@ Or specify the port manually:
 ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765
 ```
 
-Expected output should include something like:
+Expected output:
 
-```bash
+```text
 [foxglove_bridge]: Starting foxglove_bridge
 [foxglove_bridge]: Server listening on port 8765
 ```
 
 You should also see camera and LiDAR topics advertised:
 
-```bash
+```text
 /oak/rgb/image_raw
 /livox/lidar
 /livox/imu
@@ -809,47 +1453,47 @@ You should also see camera and LiDAR topics advertised:
 
 ---
 
-### Connect Foxglove
+## 21.3 Connect Through Foxglove
 
 Open a Chromium-based browser and go to:
 
-```bash
+```text
 https://app.foxglove.dev
 ```
 
 Connect using:
 
-```bash
+```text
 ws://<JETSON_IP>:8765
 ```
 
 Example:
 
-```bash
+```text
 ws://192.168.139.178:8765
 ```
 
-If access is required, ask Kanishk for UCSD email access.
+If access is required, ask the team member with UCSD email access.
 
 ---
 
-### Foxglove Bridge Notes
+## 21.4 Foxglove Bridge Notes
 
 Default WebSocket port:
 
-```bash
+```text
 8765
 ```
 
 Default address:
 
-```bash
+```text
 0.0.0.0
 ```
 
 Useful Foxglove bridge options:
 
-```bash
+```text
 port
 address
 topic_whitelist
@@ -866,7 +1510,7 @@ use_sim_time
 
 Capabilities include:
 
-```bash
+```text
 clientPublish
 parameters
 parametersSubscribe
@@ -878,13 +1522,13 @@ time
 
 Diagnostic topic if client count publishing is enabled:
 
-```bash
+```text
 /foxglove_bridge/client_count
 ```
 
 ---
 
-### Foxglove Security Notes
+## 21.5 Foxglove Security Notes
 
 - TLS/WSS can be enabled if needed.
 - If TLS is enabled, both `certfile` and `keyfile` must be provided.
@@ -893,60 +1537,7 @@ Diagnostic topic if client count publishing is enabled:
 
 ---
 
-### Building Foxglove Bridge From Source
-
-Only do this if the apt install method does not work.
-
-Clone the Foxglove SDK:
-
-```bash
-git clone https://github.com/foxglove/foxglove-sdk
-```
-
-Go to the ROS directory:
-
-```bash
-cd foxglove-sdk/ros
-```
-
-Build:
-
-```bash
-make
-```
-
-If Foxglove bridge was built outside the ROS workspace, source the setup file:
-
-```bash
-source install/local_setup.bash
-```
-
-Build Docker image:
-
-```bash
-make docker-build
-```
-
-Run tests:
-
-```bash
-make test
-```
-
-Docs:
-
-```bash
-https://docs.foxglove.dev/docs/visualization/ros-foxglove-bridge
-https://github.com/foxglove/foxglove-sdk
-```
-
----
-
-## 23. Full Camera, LiDAR, Sensor Fusion, and Foxglove Workflow
-
-Use this when starting visualization from scratch.
-
----
+## 21.6 Full Camera, LiDAR, Sensor Fusion, and Foxglove Workflow
 
 ### Terminal 1: Camera
 
@@ -955,16 +1546,12 @@ cd ~/david/real-last-try
 bash launch_camera_host.sh
 ```
 
----
-
 ### Terminal 2: LiDAR
 
 ```bash
 cd ~/david/real-last-try
 bash launch_lidar_foxy_host.sh 99
 ```
-
----
 
 ### Terminal 3: Sensor Fusion Docker
 
@@ -981,8 +1568,6 @@ ros2 topic echo /oak/rgb/image_raw
 ros2 topic echo /livox/lidar
 ```
 
----
-
 ### Terminal 4: Foxglove Bridge
 
 ```bash
@@ -991,98 +1576,32 @@ ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765
 
 Then open Foxglove and connect to:
 
-```bash
+```text
 ws://<JETSON_IP>:8765
 ```
 
 ---
 
-## 24. Running the Car with ROS Keyboard Teleop
+# 22. GPS and Septentrio
 
-This uses one terminal for the DonkeyCar vehicle loop and another terminal for ROS keyboard teleop.
+The GPS is directly connected through USB. A GPS driver is needed to publish GPS coordinates into ROS 2.
 
----
-
-### Terminal 1: DonkeyCar Vehicle Loop
-
-```bash
-source ~/donkey/bin/activate
-cd ~/projects/mycars/path_follower
-python manage_ros_drive.py --drivetrain
-```
-
----
-
-### Terminal 2: ROS Keyboard Teleop
-
-```bash
-source /opt/ros/foxy/setup.bash
-source ~/dsc190_ws/install/setup.bash
-ros2 run robocar_drive_bridge keyboard_teleop
-```
-
-Keyboard controls:
-
-```bash
-W = increase throttle
-A = decrease throttle / reverse if throttle becomes negative
-S = decrease steering toward -1
-D = increase steering toward 1
-```
-
----
-
-## 25. Path Following and PID
-
-Open the config file:
-
-```bash
-cd ~/projects/mycars/path_follower
-vim myconfig.py
-```
-
-Start the car normally:
-
-```bash
-source ~/donkey/bin/activate
-cd ~/projects/mycars/path_follower
-python manage.py drive --js
-```
-
-Path recording workflow:
-
-1. Click the right trigger at least twice on the controller to record the `(0, 0)` origin point of the car.
-2. Click the left trigger to start recording the path to follow.
-3. Drive the car forward and then through a right turn.
-
-If the car goes out of control, lift it by the two back wheels.
-
-This can happen when path following is malfunctioning.
-
----
-
-## 26. GPS and Septentrio
-
-The GPS is directly connected through USB. It does not need a custom node for raw USB access, but a GPS driver is needed to publish GPS coordinates into ROS 2.
-
-The GPS flow is:
+GPS workflow:
 
 1. Read GPS from USB.
 2. Use the GPS driver to publish GPS data into ROS 2.
-3. Create a ROS 2 navigation topic.
-4. Let Foxglove subscribe to the ROS 2 navigation topic.
+3. Create/use ROS 2 navigation topics.
+4. Let Foxglove subscribe to the ROS 2 navigation topics.
 
 ---
 
-### Check Raw GPS Over Serial
+## 22.1 Check Raw GPS Over Serial
 
 Run:
 
 ```bash
 sudo picocom -b 115200 /dev/ttyACM3
 ```
-
-This should load GPS coordinates. You may need to run the command a few times.
 
 If `/dev/ttyACM3` is wrong, check USB devices:
 
@@ -1094,9 +1613,7 @@ Then retry with the correct device.
 
 ---
 
-### Show Raw Septentrio Topic
-
-Run this on the Jetson.
+## 22.2 Show Raw Septentrio Topic
 
 Terminal 1:
 
@@ -1116,7 +1633,7 @@ ros2 topic hz /pvtgeodetic
 ros2 topic echo /pvtgeodetic
 ```
 
-The command that actually shows the streaming `-20000000000.0` values is:
+The command that shows the streaming values is:
 
 ```bash
 ros2 topic echo /pvtgeodetic
@@ -1124,9 +1641,19 @@ ros2 topic echo /pvtgeodetic
 
 ---
 
-## 27. Common Troubleshooting
+# 23. Working Version Check
 
-### USB Devices Not Detected
+To see the currently working versions for the car, including ROS 2, DepthAI C++, DepthAI Python, camera, and launch setup:
+
+```bash
+cat WORKING_VERSIONS.txt
+```
+
+---
+
+# 24. Common Troubleshooting
+
+## 24.1 USB Devices Not Detected
 
 Check devices:
 
@@ -1138,7 +1665,7 @@ If missing, unplug and replug the USB cables.
 
 ---
 
-### USB Devices Swapped
+## 24.2 USB Devices Swapped
 
 If USB ports are changed, device names may swap.
 
@@ -1148,11 +1675,20 @@ Check devices:
 ls /dev/ttyACM*
 ```
 
-Run DonkeyCar to inspect USB output:
+Identify devices:
 
 ```bash
-cd ~/projects/mycars/path_follower
-python3 manage.py drive
+for dev in /dev/ttyACM*; do
+    echo "----- $dev -----"
+    udevadm info -q property -n $dev | grep -E "ID_VENDOR=|ID_MODEL=|ID_SERIAL=|ID_USB_INTERFACE_NUM="
+done
+```
+
+Known device types:
+
+```text
+Septentrio = GPS
+ChibiOS = VESC
 ```
 
 Then update serial paths in:
@@ -1161,18 +1697,70 @@ Then update serial paths in:
 nano ~/projects/mycars/path_follower/myconfig.py
 ```
 
-Known device types:
+---
+
+## 24.3 VESC Permission Error
+
+If the VESC port has permission issues:
 
 ```bash
-Septentrio = GPS
-ChibiOS = VESC
+sudo chmod a+rw /dev/ttyACM0
+```
+
+Then rerun DonkeyCar:
+
+```bash
+cd ~/projects/mycars/path_follower
+source ~/donkey/bin/activate
+python manage.py drive
 ```
 
 ---
 
-### Joystick Not Working
+## 24.4 VESC Firmware Response Error
+
+If you see an error like:
+
+```text
+invalid literal for int() with base 10: 'None'
+```
+
+DonkeyCar opened the serial port, but `pyvesc` did not get a valid firmware response.
+
+Check that `/dev/ttyACM0` is actually the VESC:
+
+```bash
+for dev in /dev/ttyACM*; do
+    echo "----- $dev -----"
+    udevadm info -q property -n $dev | grep -E "ID_VENDOR=|ID_MODEL=|ID_SERIAL=|ID_USB_INTERFACE_NUM="
+done
+```
+
+You want:
+
+```text
+ID_MODEL=ChibiOS_RT_Virtual_COM_Port
+```
+
+Also check:
+
+```bash
+sudo chmod a+rw /dev/ttyACM0
+```
+
+Make sure the car has main power and the VESC is powered.
+
+---
+
+## 24.5 Joystick Not Working
 
 Check joystick device:
+
+```bash
+ls /dev/input/js*
+```
+
+Test joystick:
 
 ```bash
 jstest /dev/input/js0
@@ -1189,7 +1777,7 @@ If the controller does not respond, power cycle the receiver cable.
 
 ---
 
-### Receiver Blinking Red
+## 24.6 Receiver Blinking Red
 
 If the receiver is blinking red, it is not properly paired with the controller.
 
@@ -1199,9 +1787,67 @@ Fix the controller pairing before running:
 python manage.py drive --js
 ```
 
+If the controller is not working, use the web UI:
+
+```bash
+python manage.py drive
+```
+
 ---
 
-### Foxglove Bridge Package Not Found
+## 24.7 DonkeyCar Web UI Not Opening
+
+If `.local` is slow or does not work, use the direct IP:
+
+```text
+http://<JETSON_IP>:8887/drive
+```
+
+Example:
+
+```text
+http://192.168.139.178:8887/drive
+```
+
+Check whether the server is listening:
+
+```bash
+ss -ltnp | grep 8887
+```
+
+Test locally on the Jetson:
+
+```bash
+curl -I http://localhost:8887/drive
+```
+
+---
+
+## 24.8 Car Drives Fine Lifted but Weird on the Ground
+
+If the car behaves fine when lifted but makes a loud sound or behaves strangely on the ground, the issue is likely load-related.
+
+Possible causes:
+
+```text
+1. Motor/VESC cogging under load because throttle is too low
+2. Gear, belt, axle, or wheel hub slipping under load
+3. Battery/main power sagging under load
+4. Something physically blocking the drivetrain on the ground
+```
+
+Test one thing at a time:
+
+```text
+1. Steering only: left/right with no throttle
+2. Throttle only: forward/backward with steering centered
+```
+
+If steering is quiet but forward/backward is loud, focus on the drive motor/drivetrain.
+
+---
+
+## 24.9 Foxglove Bridge Package Not Found
 
 If this fails:
 
@@ -1223,7 +1869,7 @@ sudo apt install ros-humble-foxglove-bridge
 
 ---
 
-### Foxglove Running but Topics Missing
+## 24.10 Foxglove Running but Topics Missing
 
 Check ROS topics:
 
@@ -1233,7 +1879,7 @@ ros2 topic list
 
 Make sure these are present:
 
-```bash
+```text
 /oak/rgb/image_raw
 /livox/lidar
 /livox/imu
@@ -1243,7 +1889,7 @@ If they are missing, restart the camera and LiDAR nodes.
 
 ---
 
-### Camera Topic Check
+## 24.11 Camera Topic Check
 
 ```bash
 ros2 topic echo /oak/rgb/image_raw
@@ -1253,7 +1899,7 @@ Expected behavior: raw image message data streams in the terminal.
 
 ---
 
-### LiDAR Topic Check
+## 24.12 LiDAR Topic Check
 
 ```bash
 ros2 topic echo /livox/lidar
@@ -1263,7 +1909,7 @@ Expected behavior: point cloud message data streams in the terminal.
 
 ---
 
-### Sensor Fusion Output Missing
+## 24.13 Sensor Fusion Output Missing
 
 Inside the sensor fusion container:
 
@@ -1274,7 +1920,7 @@ ros2 topic list
 
 Check for:
 
-```bash
+```text
 /sensorfusion_out
 ```
 
@@ -1293,18 +1939,30 @@ ros2 topic echo /sensorfusion_out
 
 ---
 
-## 28. Useful Paths
+# 25. Useful Paths
 
-DonkeyCar path follower:
+Main DonkeyCar path follower:
 
 ```bash
 ~/projects/mycars/path_follower
 ```
 
-DonkeyCar container directory:
+Experimental CV lane follower:
 
 ```bash
-~/donkeycontainer
+~/projects/mycars/cv_lane_follower
+```
+
+DonkeyCar Python environment:
+
+```bash
+~/donkey
+```
+
+Installed DonkeyCar package:
+
+```bash
+~/donkey/lib/python3.8/site-packages/donkeycar
 ```
 
 Camera and LiDAR node repository:
@@ -1339,476 +1997,93 @@ ROS 2 workspace:
 
 ---
 
-## 29. Useful Files
+# 26. Useful Files
 
 DonkeyCar main runner:
 
-```bash
+```text
 manage.py
 ```
 
 DonkeyCar ROS runner:
 
-```bash
+```text
 manage_ros_drive.py
 ```
 
 Car configuration:
 
-```bash
+```text
 myconfig.py
 ```
 
 Joystick configuration:
 
-```bash
+```text
 my_joystick.py
 ```
 
 Joystick mapping test:
 
-```bash
+```text
 test_js0_mapping.py
 ```
 
 Camera intrinsic calibration:
 
-```bash
+```text
 camera_intrinsic_calibration.yaml
 ```
 
 Camera extrinsic calibration:
 
-```bash
+```text
 camera_extrinsic_calibration.yaml
 ```
 
 Septentrio config:
 
-```bash
+```text
 septentrio.yaml
 ```
 
 Working versions:
 
-```bash
+```text
 WORKING_VERSIONS.txt
 ```
 
 ---
 
-## 30. Useful References
+# 27. Useful References
 
 Foxglove bridge documentation:
 
-```bash
+```text
 https://docs.foxglove.dev/docs/visualization/ros-foxglove-bridge
 ```
 
 Foxglove SDK repository:
 
-```bash
+```text
 https://github.com/foxglove/foxglove-sdk
 ```
 
 Terminal output workflow reference:
 
-```bash
+```text
 https://docs.google.com/document/d/1OQKwKXm2MO3m6HLtvVt6QCz0qEVv-6aCSwUk-aFW8tI/edit?tab=t.6sq152crbhdf
 ```
 
 ---
 
-## 31. Future Work Notes
-
-Potential future direction:
-
-```bash
-vision language action model
-
-## Accessing the Jetson File System from VS Code
-
-This section explains how to open and browse the Jetson file system directly from a local computer using VS Code Remote SSH.
-
-> **Note:** Do not commit passwords or private credentials to a public GitHub repository. Replace any private IPs/passwords with placeholders if this README will be public.
-
----
-
-### 1. Install the VS Code Remote SSH Extension
-
-On your local computer:
-
-1. Open VS Code.
-2. Go to the Extensions tab.
-3. Search for:
-
-```text
-Remote - SSH
-```
-
-4. Install the extension published by Microsoft.
-
----
-
-### 2. Find the Jetson IP Address
-
-If you are on the Jetson directly, run:
-
-```bash
-myip
-```
-
-Or run:
-
-```bash
-ip addr show wlan0
-```
-
-Look for the `inet` field. The IP address should look something like:
-
-```text
-192.168.139.178
-```
-
----
-
-### 3. Test SSH from Your Local Terminal
-
-Before using VS Code, confirm that SSH works from your local computer.
-
-```bash
-ssh jetson@<JETSON_IP>
-```
-
-Example:
-
-```bash
-ssh jetson@192.168.139.178
-```
-
-Enter the Jetson password when prompted.
-
-If this works, VS Code Remote SSH should also work.
-
----
-
-### 4. Add the Jetson as a VS Code SSH Host
-
-In VS Code:
-
-1. Press:
-
-```text
-Cmd + Shift + P
-```
-
-2. Search for:
-
-```text
-Remote-SSH: Add New SSH Host
-```
-
-3. Enter the SSH command:
-
-```bash
-ssh jetson@<JETSON_IP>
-```
-
-Example:
-
-```bash
-ssh jetson@192.168.139.178
-```
-
-4. When VS Code asks which SSH config file to update, select your user config file:
-
-```text
-/Users/<your-local-username>/.ssh/config
-```
-
-Example:
-
-```text
-/Users/laurenvo/.ssh/config
-```
-
-Do **not** select:
-
-```text
-/etc/ssh/ssh_config
-```
-
----
-
-### 5. Confirm the SSH Config Entry
-
-VS Code should add an entry similar to this:
-
-```sshconfig
-Host ucsd-agx-03
-    HostName 192.168.139.178
-    User jetson
-```
-
-You can also manually edit this file:
-
-```bash
-nano ~/.ssh/config
-```
-
-A good SSH config entry is:
-
-```sshconfig
-Host ucsd-agx-03
-    HostName <JETSON_IP>
-    User jetson
-```
-
-Example:
-
-```sshconfig
-Host ucsd-agx-03
-    HostName 192.168.139.178
-    User jetson
-```
-
----
-
-### 6. Connect to the Jetson from VS Code
-
-In VS Code:
-
-1. Press:
-
-```text
-Cmd + Shift + P
-```
-
-2. Search for:
-
-```text
-Remote-SSH: Connect to Host
-```
-
-3. Select:
-
-```text
-ucsd-agx-03
-```
-
-or select the Jetson IP if that is what appears.
-
-4. If VS Code asks for the platform, choose:
-
-```text
-Linux
-```
-
-5. Enter the Jetson password when prompted.
-
-Once connected, VS Code is now running remotely on the Jetson.
-
----
-
-### 7. Open the Jetson File System
-
-After connecting, VS Code will ask you to open a folder.
-
-To open the main project folder, enter:
-
-```text
-/home/jetson/projects/mycars
-```
-
-Then click:
-
-```text
-OK
-```
-
-This folder contains the DonkeyCar projects, including:
-
-```text
-/home/jetson/projects/mycars/path_follower
-/home/jetson/projects/mycars/cv_lane_follower
-```
-
-Useful files to inspect include:
-
-```text
-/home/jetson/projects/mycars/path_follower/myconfig.py
-/home/jetson/projects/mycars/cv_lane_follower/myconfig.py
-/home/jetson/projects/mycars/cv_lane_follower/manage.py
-/home/jetson/projects/mycars/cv_lane_follower/oak_camera.py
-```
-
----
-
-### 8. Open the Entire Jetson Home Directory
-
-To browse more of the Jetson file system, open:
-
-```text
-/home/jetson
-```
-
-This lets you access folders such as:
-
-```text
-/home/jetson/projects
-/home/jetson/donkey
-/home/jetson/dsc190_ws
-/home/jetson/sensorfusion
-```
-
----
-
-### 9. Open the Installed DonkeyCar Package
-
-The installed DonkeyCar source code is located inside the Python environment:
-
-```text
-/home/jetson/donkey/lib/python3.8/site-packages/donkeycar
-```
-
-Useful template files include:
-
-```text
-/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/cv_control.py
-/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/path_follow.py
-/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/cfg_cv_control.py
-/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/cfg_path_follow.py
-/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/complete.py
-```
-
-In general, avoid editing the installed DonkeyCar package directly. Instead, edit the local project files under:
-
-```text
-/home/jetson/projects/mycars
-```
-
----
-
-### 10. Important VS Code Notes
-
-If the folder picker says:
-
-```text
-/home/jetson/
-```
-
-you can manually type the folder path you want, such as:
-
-```text
-/home/jetson/projects/mycars
-```
-
-Then click:
-
-```text
-OK
-```
-
-Do **not** click:
-
-```text
-Show Local
-```
-
-because that switches the file browser back to your local computer instead of the Jetson.
-
----
-
-### 11. Troubleshooting
-
-#### Permission denied when connecting
-
-If VS Code shows:
-
-```text
-Permission denied (publickey,password)
-```
-
-make sure the SSH config includes the correct user:
-
-```sshconfig
-User jetson
-```
-
-The full config should look like:
-
-```sshconfig
-Host ucsd-agx-03
-    HostName <JETSON_IP>
-    User jetson
-```
-
-Then reconnect using:
-
-```text
-Remote-SSH: Connect to Host
-```
-
----
-
-#### Wrong IP address
-
-If the Jetson IP changed, run this on the Jetson:
-
-```bash
-myip
-```
-
-or:
-
-```bash
-ip addr show wlan0
-```
-
-Then update your local SSH config:
-
-```bash
-nano ~/.ssh/config
-```
-
-Update:
-
-```sshconfig
-HostName <NEW_JETSON_IP>
-```
-
----
-
-#### Test SSH manually
-
-From your local terminal:
-
-```bash
-ssh jetson@<JETSON_IP>
-```
-
-If this does not work, VS Code Remote SSH will not work either.
-
----
-
-#### Remote folder does not show expected files
-
-Make sure you opened the correct folder:
-
-```text
-/home/jetson/projects/mycars
-```
-
-not your local computer folder.
-
-You should see:
-
-```text
-path_follower
-cv_lane_follower
-```
-
-in the VS Code file explorer.
-```
-
-This likely refers to adding a VLA-style model on top of the current car stack after the core driving, sensor, GPS, and visualization pipeline is stable.
+# 28. Future Work
+
+Potential future directions:
+
+- Improve line following using camera-based CV.
+- Add a robust lane-following algorithm that detects two lane boundaries and follows the midpoint.
+- Integrate camera, LiDAR, and GPS into a stronger navigation stack.
+- Add obstacle detection using LiDAR.
+- Improve Foxglove layouts for live debugging.
+- Add a VLA-style model after the core driving, sensor, GPS, and visualization pipeline is stable.
