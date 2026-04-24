@@ -1,750 +1,1442 @@
-# UCSD RoboRacer (1/5 Off-Road RoboCar)
+# DSC 190 Working Car Documentation
 
-This README walks through:
-1) Powering on the RoboCar (Jetson AGX)
-2) Getting the camera feed running (SSH + scripts)
+**Last Updated:** 04/21/2026  
+**Project Report:** https://www.overleaf.com/5747418314vbnfgzkvfrdy#c09d00
 
----
-
-## Prerequisites
-
-- **Wi-Fi network:** `UCSDRoboCar`
-- **Power:** **14.8V battery** connected *or* an external power source
-- **Remote desktop:** NoMachine installed on your laptop
+> **Important:** This README contains device IPs and the Jetson password. Do not commit this publicly unless those credentials are removed or replaced with placeholders.
 
 ---
 
-## 1) How to Turn On the Car
+## 1. Jetson Access
 
-1. **Connect your laptop to Wi-Fi**
-   - Network: `UCSDRoboCar`
-
-2. **Verify power is connected**
-   - Ensure the car is connected to a **14.8V battery** or a valid **power source**.
-   - **Safety:** Make sure the **14.8V battery is connected to the battery alarm** (low-voltage alarm) before turning the car on.
-
-3. **Turn on main power**
-   - Press the **main power button** down.
-   - You should see the **power symbol turn blue**.
-
-4. **Enable HDMI / Jetson boot**
-   - On the **right side of the car**, there are **three buttons** next to each other.
-   - Press the **left-most** button **until the HDMI light turns on and starts blinking**.
-
-5. **Confirm boot**
-   - The **fan should turn on**.
-   - The car should appear in NoMachine as:
-     - `ucsd-agx-03`
-
----
-
-## 2) How to Access the Camera Feed
-
-You will run commands in **two terminals**.
-
-### Terminal #1 (SSH + Start Stream)
-
-1. SSH into the Jetson:
-
-   ```bash
-   ssh jetson@192.168.11.156
-   ```
-   
-   If this does not work, you can try this method:
-   ```bash
-   ssh jetson@ucsd-agx-03.local
-   ```
-
-3. Enter the password when prompted.
-
-4. Go to the camera fusion directory:
-
-   ```bash
-   cd ece191/Camera_fusion2025/src/
-   ```
-
-5. Run the streaming script:
-
-   ```bash
-   python3 stream_UVC.py
-   ```
-
----
-
-### Terminal #2 (Run CV Test)
-
-1. Open a **new terminal window**.
-
-2. Go to the same directory:
-
-   ```bash
-   cd ece191/Camera_fusion2025/src/
-   ```
-
-3. Run the test launcher:
-
-   ```bash
-   python3 test
-   ```
-
-4. Run the OpenCV test:
-
-   ```bash
-   test_cv.py
-   ```
-
----
-
-### Accessing the Color Camera
-
-1. Open a **new terminal window**.
-
-2. Go into this directory:
-
-   ```bash
-   cd depthai-python/examples/ColorCamera/
-   ```
-
-3. Run the streaming script:
-   
-   ```bash
-   python3 rgb_preview.py
-   ```
-
-This shows the color camera attached to the front of the car, displaying at around 20 frames per second. 
-
-### Accessing the Monochrome Cameras
-
-These cameras shows the view from a left and right point of view in monochrome. 
-
-1. In a new (or old terminal after pressing Ctrl+C), change into this directory:
-   
-   ```bash
-   cd depthai-python/examples/MonoCamera/
-   ```
-
-2. Run this streaming script:
-   ```bash
-   python3 mono_preview.py
-   ```
-
-### Accessing the Object Tracker
-
-1. In a new terminal, change directories to this:
-
-   ```bash
-   cd depthai-python/examples/ObjectTracker/
-   ```
-
-2. Run the streaming script:
-   ```bash
-   python3 object_tracker.py
-   ```
-
-## Expected Results
-
-* Car is reachable via SSH at `192.168.11.156` or `local`
-* NoMachine shows the host as `ucsd-agx-03`
-* Camera stream script runs in Terminal #1
-* CV test runs in Terminal #2 and displays/validates the feed
-
----
-
-## 3) DonkeyCar Access + Manual Driving (Verified on `ucsd-agx-03`)
-
-This section is the correct startup flow for running DonkeyCar manual drive on the 1/5 off-road RoboCar.
-
-### Environment + Paths (verified)
-
-* Jetson host: `ucsd-agx-03` (or `ucsd-agx-03.local`)
-* User: `jetson` (**not root**)
-* Virtual env path: `~/donkey/bin/activate`
-* Car project path: `~/projects/mycars/deep_learning_car`
-* Drive entrypoint: `python manage.py drive`
-* Web UI:
-
-  * `http://ucsd-agx-03.local:8887/drive`
-  * or `http://192.168.11.156:8887/drive`
-
----
-
-### 3.1 Start DonkeyCar (manual driving + web UI)
-
-1. SSH into Jetson:
-
-   ```bash
-   ssh jetson@ucsd-agx-03.local
-   ```
-
-   (or)
-
-   ```bash
-   ssh jetson@192.168.11.156
-   ```
-
-2. Confirm you are not root:
-
-   ```bash
-   whoami
-   ```
-
-   Expected:
-
-   ```text
-   jetson
-   ```
-
-3. Activate DonkeyCar virtual environment:
-
-   ```bash
-   source ~/donkey/bin/activate
-   ```
-
-   Optional check:
-
-   ```bash
-   which python
-   ```
-
-   Expected:
-
-   ```text
-   /home/jetson/donkey/bin/python
-   ```
-
-4. Go to the car project directory:
-
-   ```bash
-   cd ~/projects/mycars/deep_learning_car
-   ```
-
-5. (Optional) edit car overrides:
-
-   ```bash
-   nano myconfig.py
-   ```
-
-6. Start DonkeyCar:
-
-   ```bash
-   python manage.py drive
-   ```
-
-7. Open web controller in browser:
-
-   ```text
-   http://192.168.11.156:8887/drive
-   ```
-
-   (or)
-
-   ```text
-   http://ucsd-agx-03.local:8887/drive
-   ```
-
----
-
-### 3.2 Expected healthy startup logs
-
-You should see lines like:
-
-* `using donkey v5.0.0`
-* `loading config file: .../deep_learning_car/config.py`
-* `loading personal config over-rides from myconfig.py`
-* `Starting Donkey Server...`
-* `You can now go to ucsd-agx-03.local:8887 to drive your car.`
-* `Creating VESC at port /dev/ttyACM0`
-* `Starting vehicle at 20 Hz`
-
-Camera can appear as either:
-
-* `cfg.CAMERA_TYPE MOCK` (test mode), or
-* `cfg.CAMERA_TYPE OAKD` (real OAK-D camera)
-
----
-
-### 3.3 Controller notes
-
-* Connect controller directly to Jetson (USB dongle/cable) or Bluetooth.
-* If using PS4 controller, pair via Bluetooth before running `manage.py drive`.
-
-> Note: HDMI is for display output, not controller data transport.
-
----
-
-### 3.4 Recording behavior (what you should see)
-
-When recording toggles ON in web UI/controller, logs show:
-
-* `Recording Change = True`
-* `Setting Recording = True`
-* `recorded 10 records`, `recorded 20 records`, etc.
-
-Data is saved under:
-
-```text
-~/projects/mycars/deep_learning_car/data/tub_*/
-```
-
-with a `manifest.json` in each tub folder.
-
----
-
-### 3.5 After collecting training data
-
-Train a simple lane-following model:
+### Current Jetson IP
 
 ```bash
-python manage.py train \
-  --tub data \
-  --model models/pilot.h5 \
-  --type linear
+192.168.139.178
 ```
 
-Drive with trained model:
+If you are physically on the Jetson, run:
 
 ```bash
-python manage.py drive --model models/pilot.h5
+myip
 ```
 
-Then switch to AI mode in the web UI.
+If the IP address changed, run:
+
+```bash
+ip addr show wlan0
+```
+
+Look for the `inet` field. The first number string after `inet` is the Jetson IP address.
 
 ---
 
-### 3.6 Clean shutdown
+### SSH into the Jetson
 
-Stop with:
+From your personal computer:
 
 ```bash
-Ctrl + C
+ssh -x jetson@<ip-address-of-jetson>
 ```
 
-Expected normal shutdown lines:
+Example:
 
-* `Shutting down vehicle and its parts...`
-* `Closing tub ...`
-* `Closing manifest ...`
-* Part profile summary table
+```bash
+ssh -x jetson@192.168.139.178
+```
 
-You may occasionally see:
+Password:
 
-* `Task was destroyed but it is pending!`
-* `KeyboardInterrupt` during teardown
+```bash
+jetsonucsd
+```
+
+If using X forwarding:
+
+```bash
+ssh -X jetson@<ip-address-of-jetson>
+```
 
 ---
 
-### 3.7 Quick troubleshooting 
+## 2. Connecting Through Hotspot
 
-#### A) `-bash: ./: Is a directory`
-
-You typed:
-
-```bash
-./ ls
-```
-
-Fix:
+1. Connect the Jetson to the hotspot using the Ubuntu network menu.
+2. On the Jetson, find the IP address:
 
 ```bash
-ls
+ifconfig
 ```
 
-#### B) `naon: command not found`
+3. Connect your personal computer to the same hotspot.
+4. SSH into the Jetson:
 
-Typo. Use:
+```bash
+ssh -X jetson@<hotspot-ip-address>
+```
+
+Example:
+
+```bash
+ssh -X jetson@10.53.210.191
+```
+
+Password:
+
+```bash
+jetsonucsd
+```
+
+---
+
+## 3. Hardware and Power Notes
+
+### Power Distribution
+
+- Do **not** plug anything that needs `5V` into `12V`. This can burn the component.
+- `20V` is for the VESC because the motor needs higher power.
+- If the servo does not work, check the small connector on the right side.
+- The servo wiring colors are flipped:
+  - Usually black is ground.
+  - On this setup, **white is ground**.
+  - Match **white to black**.
+- Ask for a lid if the electronics are exposed.
+
+---
+
+### Powering On the Jetson and Car
+
+1. Connect the main power cable on the car.
+2. Face the car forward.
+3. Press the power button on the top-left corner of the power distribution board.
+4. Press either the first or third button on the Jetson computer, which is the black box.
+
+---
+
+## 4. USB Device Names
+
+List all connected USB serial devices:
+
+```bash
+ls /dev/ttyACM*
+```
+
+Expected devices may include:
+
+```bash
+/dev/ttyACM0
+/dev/ttyACM1
+/dev/ttyACM2
+/dev/ttyACM3
+```
+
+If devices are not detected, power cycle the cables by unplugging and replugging them.
+
+USB names can change if ports are swapped. If the car stops working after moving USB cables, check the detected devices again:
+
+```bash
+ls /dev/ttyACM*
+```
+
+Then update the correct serial device paths in:
+
+```bash
+~/projects/mycars/path_follower/myconfig.py
+```
+
+---
+
+## 5. Working Version Check
+
+To see the currently working versions for the car, including ROS 2, DepthAI C++, DepthAI Python, camera, and launch setup:
+
+```bash
+cat WORKING_VERSIONS.txt
+```
+
+---
+
+## 6. Editing Files on the Jetson
+
+Use `nano` for simple terminal editing:
+
+```bash
+nano <filename>
+```
+
+Example:
 
 ```bash
 nano myconfig.py
 ```
 
-#### C) Running as root breaks normal flow (`conda` not found, wrong env)
-
-Use `jetson` account for DonkeyCar runtime.
-
-#### D) OAK-D warning about unsupported resolution defaulting to 800P
-
-This warning is non-fatal; startup can still succeed.
-
-#### E) `404 GET /favicon.ico`
-
-Harmless browser request, can be ignored.
-
----
-
-### 3.8 Reference file location on Jetson
-
-Your notes/readme file can be accessed at:
+Use VS Code if available:
 
 ```bash
-cd ~/donkeycontainer
-nano donkeycar_readme.txt
+code --no-sandbox .
+```
+
+Example for opening the joystick file:
+
+```bash
+code --no-sandbox my_joystick.py
+```
+
+If working outside a GUI environment, use:
+
+```bash
+nano my_joystick.py
+```
+
+or:
+
+```bash
+vim myconfig.py
 ```
 
 ---
 
-## One-command sequence (copy/paste)
+## 7. VS Code Remote SSH Setup
+
+To browse the Jetson file system from your computer:
+
+1. Open VS Code on your computer.
+2. Install the **Remote - SSH** extension.
+3. Click the `+` button for a new remote.
+4. Add the SSH command:
 
 ```bash
-ssh jetson@ucsd-agx-03.local
+ssh jetson@<ip-address>
+```
+
+Example:
+
+```bash
+ssh jetson@192.168.139.178
+```
+
+5. Select platform:
+
+```bash
+Linux
+```
+
+---
+
+## 8. DonkeyCar Setup
+
+Go into the DonkeyCar container directory:
+
+```bash
+cd donkeycontainer/
+```
+
+Check the environment source script:
+
+```bash
+cat sourceForPathfollowercar.sh
+```
+
+Activate the environment:
+
+```bash
+source sourceForPathfollowercar.sh
+```
+
+The main DonkeyCar project path is:
+
+```bash
+~/projects/mycars/path_follower
+```
+
+Go to the path follower car directory:
+
+```bash
+cd ~/projects/mycars/path_follower
+```
+
+Important files:
+
+```bash
+manage.py
+myconfig.py
+my_joystick.py
+```
+
+File purposes:
+
+- `manage.py`: main file used to run the car.
+- `myconfig.py`: contains car configuration, VESC configuration, serial ports, baudrate, and movement parameters.
+- `my_joystick.py`: contains controller and joystick mappings.
+
+---
+
+## 9. Running the Car with DonkeyCar and Joystick
+
+Activate the DonkeyCar environment:
+
+```bash
 source ~/donkey/bin/activate
-cd ~/projects/mycars/deep_learning_car
-python manage.py drive
 ```
 
-Then open:
-
-```text
-http://192.168.11.156:8887/drive
-```
-
----
-
-## 4) Access LiDAR, Point Cloud, and Depth/Cameras
-
-This section covers how to access:
-
-1. Livox MID-360 LiDAR + point cloud in RViz
-2. LiDAR ROS2 topic data in terminal
-3. DepthAI depth/RGB/mono/object-tracking camera streams
-
----
-
-### 4.1 LiDAR + Point Cloud (Livox MID-360)
-
-#### A) Connect through NoMachine first
-
-1. Open **NoMachine** and connect to:
-
-   * `192.168.11.156`
-2. Log in with the team credentials.
-3. In the VM desktop, top-right network menu (**Ethernet**) → select:
-
-   * **Profile 1**
-4. Open a terminal in the VM.
-
----
-
-#### B) Start Livox ROS2 driver + RViz point cloud
+Go to the path follower directory:
 
 ```bash
-cd ~/lidar_test/src/ws_livox/src/livox_ros_driver2
-./build.sh ROS2
-
-cd ~/lidar_test/src/ws_livox
-source install/setup.bash
-ros2 launch livox_ros_driver2 rviz_MID360_launch.py
+cd ~/projects/mycars/path_follower
 ```
 
-> If `source install/setup.bash` fails, you are likely in the wrong folder.
-> It should be run from the workspace root: `~/lidar_test/src/ws_livox`.
+Run the car with joystick enabled:
+
+```bash
+python3 manage.py drive --js
+```
+
+or:
+
+```bash
+python manage.py drive --js
+```
+
+The `--js` flag is recommended because it automatically uses the joystick.
+
+If you run without `--js`:
+
+```bash
+python3 manage.py drive
+```
+
+The car will default to the web UI. The terminal output will show the web URL for driving.
+
+A working run should eventually print:
+
+```bash
+Recording Change = False
+Setting Recording = False
+```
 
 ---
 
-### 4.2 How to check LiDAR data (distance / closeness)
+## 10. DonkeyCar Web UI
 
-From a new terminal:
+To check if the joystick and web interface are working, open:
 
 ```bash
-cd ~/lidar_test/src/ws_livox
-source install/setup.bash
-ros2 node list
+ucsd-agx03.local:8887/drive
+```
+
+If this does not work, use the Jetson IP address in the browser instead.
+
+---
+
+## 11. Joystick and Remote Control
+
+### General Remote Notes
+
+- The pairing process is in the ECE 191 documentation.
+- Use the scroller to navigate.
+- Click using `select`.
+- Go into `tools` on the controller interface when debugging.
+- The right toggle controls forward and backward motion.
+- The left toggle controls steering.
+
+---
+
+### Check if the Controller is Working
+
+Run:
+
+```bash
+jstest /dev/input/js0
+```
+
+You can also run:
+
+```bash
+python3 test_js0_mapping.py
+```
+
+From the path follower directory:
+
+```bash
+cd ~/projects/mycars/path_follower
+python3 test_js0_mapping.py
+```
+
+This script uses the `my_joystick.py` file and shows which controller input is being pressed.
+
+---
+
+### Debugging Controller Issues
+
+If the controller does not work:
+
+1. Power cycle the receiver by unplugging and replugging the controller USB cable.
+2. Check that the receiver is solid red, not blinking.
+3. If the controller says:
+
+```bash
+Telemetry lost
+```
+
+that can happen during connection issues.
+
+If the numbers change a lot on their own during joystick testing, the receiver may have a problem.
+
+If the receiver on the car is blinking red for several seconds or minutes, the receiver and controller are likely not paired correctly.
+
+---
+
+## 12. Running the Car with the Radio Master Controller
+
+Before running the car:
+
+1. Make sure the receiver on the car is solid red.
+2. Turn on the Radio Master controller.
+3. Confirm the receiver is still solid red.
+
+Then run:
+
+```bash
+source ~/donkey/bin/activate
+cd ~/projects/mycars/path_follower
+python manage.py drive --js
+```
+
+If the receiver is blinking red, fix the pairing before driving.
+
+---
+
+## 13. DonkeyCar Configuration Notes
+
+Open the config file:
+
+```bash
+cd ~/projects/mycars/path_follower
+nano myconfig.py
+```
+
+or:
+
+```bash
+cd ~/projects/mycars/path_follower
+code --no-sandbox .
+```
+
+Things that can be configured in `myconfig.py`:
+
+- VESC serial port
+- GPS serial port
+- Steering scale
+- Throttle scale
+- Baudrate
+- Car movement parameters
+
+Keep the baudrate at:
+
+```bash
+115200
+```
+
+If the car drives forward but veers off, adjust the steering scale in `myconfig.py`.
+
+Do not run max speed at `0.6` while the car is off the ground. Without resistance from the ground, the car may crash or shut down.
+
+---
+
+## 14. ROS 2 Basic Commands
+
+List all visible ROS 2 topics:
+
+```bash
 ros2 topic list
+```
+
+Echo a topic:
+
+```bash
+ros2 topic echo <topic_name>
+```
+
+Example:
+
+```bash
+ros2 topic echo /oak/rgb/image_raw
+```
+
+Example:
+
+```bash
 ros2 topic echo /livox/lidar
 ```
 
-* `/livox/lidar` prints a large stream of point data.
-* As objects get closer, point coordinates/ranges should reflect shorter distances in the sensor frame.
-* For easier visualization of near/far objects, use RViz point cloud view from the launch command above.
+If nothing appears, then the topic is not publishing or the current shell/container cannot see it.
 
 ---
 
-### 4.3 Access Depth, RGB, Mono (left/right), and Object Tracking Cameras
+## 15. Docker Basic Commands
 
-Start from Jetson home terminal:
-
-#### A) Stereo depth preview
+See running containers:
 
 ```bash
-cd ~/depthai-python/examples/StereoDepth
-python3 depth_preview.py
+docker ps
 ```
 
-#### B) Color camera preview
+See available Docker images:
 
 ```bash
-cd ~/depthai-python/examples/ColorCamera
-python3 rgb_preview.py
+docker images
 ```
 
-To inspect/edit preview size/settings:
+Stop a container:
 
 ```bash
-cat rgb_preview.py
+docker stop <container_name>
 ```
 
-#### C) Object tracking
+Enter a running container:
 
 ```bash
-cd ~/depthai-python/examples/ObjectTracker
-python3 object_tracker.py
-python3 spatial_object_tracker.py
+docker exec -it <container_name> /bin/bash
 ```
 
-#### D) Mono cameras (left + right, black/white)
+Example:
 
 ```bash
-cd ~/depthai-python/examples/MonoCamera
-python3 mono_preview.py
+docker exec -it ros2_camera_lidar_fusion /bin/bash
 ```
 
 ---
 
-### 4.4 Quick troubleshooting
+## 16. Building and Running Camera and LiDAR ROS 2 Nodes
 
-* **No data in RViz / ROS topics empty**
+Go to the ROS node repository:
 
-  * Confirm NoMachine session is on `192.168.11.156`
-  * Confirm Ethernet is set to **Profile 1**
-  * Re-source workspace:
+```bash
+cd ~/david/real-last-try
+```
 
-    ```bash
-    cd ~/lidar_test/src/ws_livox
-    source install/setup.bash
-    ```
+Build the camera and LiDAR Docker containers:
 
-* **`build.sh` not found**
+```bash
+docker compose -f docker-compose.yml -f docker-compose.arm64.yml build
+```
 
-  * Make sure you are in:
-    `~/lidar_test/src/ws_livox/src/livox_ros_driver2`
-
-* **DepthAI scripts not found**
-
-  * Make sure you are under:
-    `~/depthai-python/examples/...` before running each script
+After the build finishes, open two terminals.
 
 ---
 
-## 5) Camera Calibration Validation (OAK-D RGB) using Checkerboard
-
-This section documents how we validated the **front OAK-D color camera** calibration (intrinsics + distortion) using a **checkerboard**, and computed **reprojection error** for both:
-
-- **Factory calibration** stored on the OAK-D device (EEPROM)
-- **Fresh OpenCV checkerboard calibration** (for comparison)
-
-### Goal
-- Confirm the camera is already calibrated and distortion correction works (straight lines become straight).
-- Quantify calibration quality using **reprojection RMSE (pixels)**.
-- Save artifacts (images + summary) for report/writeup.
-
-### Prereqs
-- Car is powered on and you can connect via **NoMachine** and/or **SSH**.
-- OAK-D is working via DepthAI scripts.
-- Checkerboard used:
-  - **10 × 7 squares** → **9 × 6 interior corners**
-  - Square size measured: **45 mm** → `0.045 m`
-
----
-
-### 5.1 Open RGB camera feed (sanity check)
-
-On the Jetson:
+### Terminal 1: Launch Camera Node
 
 ```bash
-cd ~/depthai-python/examples/ColorCamera
-python3 rgb_preview.py
-````
-
-Expected:
-
-* Live RGB feed from the front OAK-D camera.
-
----
-
-### 5.2 (Optional) Visual undistortion sanity check
-
-DepthAI provides an example undistortion script:
-
-```bash
-cd ~/depthai-python/examples/ColorCamera
-python3 rgb_undistort.py
-```
-
-Expected:
-
-* Two windows: **Distorted** (raw) and **Undistorted**
-* Undistorted image may look slightly **cropped/zoomed** (normal) because undistortion often crops valid pixels to avoid black borders.
-* Straight edges near image boundaries should appear straighter in the undistorted view.
-
-Notes:
-
-* You may see warnings like “unsupported resolution… defaulting to 800P/720P” and Qt font warnings. These are non-fatal.
-
----
-
-### 5.3 Capture checkerboard dataset (20–60 images)
-
-We captured checkerboard images directly from the OAK-D ISP output at **1280×800**.
-
-1. Go to ColorCamera examples:
-
-```bash
-cd ~/depthai-python/examples/ColorCamera
-```
-
-2. Run the capture script:
-
-```bash
-python3 capture_checkerboard.py
-```
-
-Controls:
-
-* Press **s** in the camera window to save an image
-* Press **q** to quit cleanly
-  (Ctrl+C also exits, but prints a KeyboardInterrupt traceback—this is harmless.)
-
-Saved image location:
-
-* `~/camera_calib/images/`
-
-Quick checks:
-
-```bash
-ls ~/camera_calib/images | wc -l
-```
-
-Capture guidelines (important for good corner detection):
-
-* Fill ~30–70% of image with board (not tiny/far away)
-* Keep board fully in frame (don’t crop edges)
-* Vary pose: center + corners of FOV + near/far + tilted/skewed
-* Avoid glare and motion blur
-
----
-
-### 5.4 Compute reprojection error + save outputs
-
-Run the validation/calibration script:
-
-```bash
-cd ~/depthai-python/examples/ColorCamera
-python3 validate_checkerboard.py
-```
-
-This script:
-
-* Detects checkerboard corners in the dataset
-* Computes reprojection error for:
-
-  * **Factory calibration** read from device EEPROM
-  * **OpenCV calibration** computed from the checkerboard images
-* Saves “before/after” undistortion images and a summary file
-
-Outputs written to:
-
-* `~/camera_calib/outputs/`
-
-Contents:
-
-* `sample_distorted.png`
-* `sample_undistorted_factory.png`
-* `sample_undistorted_opencv.png`
-* `summary.txt`
-
-Open the summary:
-
-```bash
-cat ~/camera_calib/outputs/summary.txt
-```
-
-Open the images (NoMachine GUI):
-
-```bash
-xdg-open ~/camera_calib/outputs/sample_distorted.png
-xdg-open ~/camera_calib/outputs/sample_undistorted_factory.png
-xdg-open ~/camera_calib/outputs/sample_undistorted_opencv.png
+cd ~/david/real-last-try
+bash launch_camera_host.sh
 ```
 
 ---
 
-### 5.5 Results we observed (example from today)
+### Terminal 2: Launch LiDAR Node
 
-Dataset:
-
-* Total images: **56**
-* Images used (corners found): **19**
-* Board interior corners: **9×6**
-* Square size: **0.045 m**
-* Image size: **1280×800**
-
-Reprojection RMSE (pixels):
-
-* **Factory (EEPROM) mean RMSE:** ~**1.16 px**
-* **OpenCV calibration mean RMSE:** ~**1.72 px**
-
-Interpretation:
-
-* Factory calibration performed **better** than our re-calibration on this dataset.
-* Conclusion: **Use the device factory calibration** for rectification + measurement pipeline.
-
----
-
-### 5.6 Download images + outputs to your laptop (keep a copy)
-
-From your **laptop terminal** (Mac/Linux):
+The LiDAR is connected through Ethernet and usually has an IP of the form:
 
 ```bash
-mkdir -p ~/Downloads/roboracer_cam_calib
-scp -r jetson@192.168.11.156:/home/jetson/camera_calib/images ~/Downloads/roboracer_cam_calib/
-scp -r jetson@192.168.11.156:/home/jetson/camera_calib/outputs ~/Downloads/roboracer_cam_calib/
+192.168.1.xx
 ```
 
-Alternative hostname:
+The last two digits are usually:
 
 ```bash
-scp -r jetson@ucsd-agx-03.local:/home/jetson/camera_calib/images ~/Downloads/roboracer_cam_calib/
-scp -r jetson@ucsd-agx-03.local:/home/jetson/camera_calib/outputs ~/Downloads/roboracer_cam_calib/
+99
+```
+
+Launch the LiDAR node:
+
+```bash
+cd ~/david/real-last-try
+bash launch_lidar_foxy_host.sh 99
+```
+
+Make sure the red-taped USB is plugged into `12V`. It can slip out.
+
+---
+
+### Check Camera and LiDAR Topics
+
+After both nodes are running:
+
+```bash
+ros2 topic list
+```
+
+You should see:
+
+```bash
+/livox/lidar
+/oak/rgb/image_raw
+```
+
+Check the camera stream:
+
+```bash
+ros2 topic echo /oak/rgb/image_raw
+```
+
+Check the LiDAR stream:
+
+```bash
+ros2 topic echo /livox/lidar
+```
+
+Both should show streaming output.
+
+---
+
+## 17. Sensor Fusion Docker Setup
+
+After the camera and LiDAR nodes are running, go to the sensor fusion Docker directory:
+
+```bash
+cd ~/sensorfusion/ros2_camera_lidar_fusion/docker
+```
+
+Run the Docker environment:
+
+```bash
+bash run.sh
+```
+
+Check running containers:
+
+```bash
+docker ps
+```
+
+You should see three containers running.
+
+Inside the Docker container, check visible ROS topics:
+
+```bash
+ros2 topic list
+```
+
+You should be able to see the outside camera and LiDAR topics:
+
+```bash
+/livox/lidar
+/oak/rgb/image_raw
+```
+
+Echo LiDAR:
+
+```bash
+ros2 topic echo /livox/lidar
+```
+
+Echo camera:
+
+```bash
+ros2 topic echo /oak/rgb/image_raw
 ```
 
 ---
 
-### 5.7 Troubleshooting
+## 18. Entering the Sensor Fusion Container Manually
 
-**Corners found is low (e.g., <10 usable images):**
+If needed, enter the running sensor fusion container manually:
 
-* Board too small in frame → move closer
-* Board partially cut off → keep full board visible
-* Motion blur → hold still when pressing `s`
-* Glare/reflections → change angle / lighting
-
-**Undistorted image looks slightly zoomed:**
-
-* Normal due to undistortion cropping to valid region (depends on implementation).
-
-**KeyboardInterrupt traceback after quitting capture script:**
-
-* Happens when using Ctrl+C. Prefer pressing **q** in the window for clean exit.
+```bash
+docker exec -it ros2_camera_lidar_fusion /bin/bash
+```
 
 ---
 
-## Troubleshooting (Quick Checks)
+## 19. Sensor Fusion Build and Launch
 
-* **NoMachine can’t find `ucsd-agx-03`:**
+Inside the sensor fusion container:
 
-  * Re-check: main power symbol is **blue**, HDMI light is **blinking**, **fan is on**
-  * Confirm your laptop is on `UCSDRoboCar`
+```bash
+cd /ros2_ws
+```
 
-* **SSH fails (`No route to host` / timeout):**
+Show available launch options:
 
-  * Confirm Wi-Fi `UCSDRoboCar`
-  * Verify the Jetson is fully booted (fan on, HDMI blinking)
+```bash
+bash launch.sh
+```
 
-* **Command not found (e.g., `stream_UVC.py`):**
+Build the workspace:
 
-  * Confirm you are in:
+```bash
+colcon build
+```
 
-    ```bash
-    cd ece191/Camera_fusion2025/src/
-    ```
+Run the built package directory if needed:
+
+```bash
+./build/ros2_camera_lidar_fusion/
+```
 
 ---
+
+## 20. Camera Calibration
+
+Inside the sensor fusion container:
+
+```bash
+cd /ros2_ws
+bash launch.sh 1
+```
+
+This computes the checkerboard calibration.
+
+After calibration, values are saved on the Jetson under:
+
+```bash
+~/sensorfusion/ros2_camera_lidar_fusion/config
+```
+
+The important calibration files are:
+
+```bash
+camera_extrinsic_calibration.yaml
+camera_intrinsic_calibration.yaml
+```
+
+Open the config directory from the Jetson:
+
+```bash
+cd ~/sensorfusion/ros2_camera_lidar_fusion/config
+ls
+```
+
+More checkerboard angles are needed for better camera and LiDAR calibration.
+
+---
+
+## 21. LiDAR Calibration
+
+Inside the sensor fusion container:
+
+```bash
+cd /ros2_ws
+bash launch.sh 2
+```
+
+After LiDAR calibration, check that the fused output topic exists:
+
+```bash
+ros2 topic list
+```
+
+You should see:
+
+```bash
+/sensorfusion_out
+```
+
+Echo the fused output:
+
+```bash
+ros2 topic echo /sensorfusion_out
+```
+
+---
+
+## 22. Foxglove Visualization
+
+Foxglove is used instead of RViz for live ROS visualization.
+
+The flow is:
+
+1. Start the camera node.
+2. Start the LiDAR node.
+3. Start the sensor fusion Docker container if needed.
+4. Start the Foxglove bridge.
+5. Open Foxglove in a browser.
+6. Connect to the Jetson WebSocket.
+
+---
+
+### Install Foxglove Bridge
+
+If Foxglove bridge is not installed, run:
+
+```bash
+sudo apt install ros-$ROS_DISTRO-foxglove-bridge
+```
+
+For this car on ROS Humble:
+
+```bash
+sudo apt install ros-humble-foxglove-bridge
+```
+
+If you get an error like:
+
+```bash
+E: Unable to locate package ros-humble-foxglove-bridge
+```
+
+run:
+
+```bash
+sudo apt update
+```
+
+Then retry:
+
+```bash
+sudo apt install ros-humble-foxglove-bridge
+```
+
+---
+
+### Launch Foxglove Bridge
+
+Run:
+
+```bash
+ros2 launch foxglove_bridge foxglove_bridge_launch.xml
+```
+
+Or specify the port manually:
+
+```bash
+ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765
+```
+
+Expected output should include something like:
+
+```bash
+[foxglove_bridge]: Starting foxglove_bridge
+[foxglove_bridge]: Server listening on port 8765
+```
+
+You should also see camera and LiDAR topics advertised:
+
+```bash
+/oak/rgb/image_raw
+/livox/lidar
+/livox/imu
+```
+
+---
+
+### Connect Foxglove
+
+Open a Chromium-based browser and go to:
+
+```bash
+https://app.foxglove.dev
+```
+
+Connect using:
+
+```bash
+ws://<JETSON_IP>:8765
+```
+
+Example:
+
+```bash
+ws://192.168.139.178:8765
+```
+
+If access is required, ask Kanishk for UCSD email access.
+
+---
+
+### Foxglove Bridge Notes
+
+Default WebSocket port:
+
+```bash
+8765
+```
+
+Default address:
+
+```bash
+0.0.0.0
+```
+
+Useful Foxglove bridge options:
+
+```bash
+port
+address
+topic_whitelist
+service_whitelist
+param_whitelist
+client_topic_whitelist
+capabilities
+num_threads
+min_qos_depth
+max_qos_depth
+include_hidden
+use_sim_time
+```
+
+Capabilities include:
+
+```bash
+clientPublish
+parameters
+parametersSubscribe
+services
+connectionGraph
+assets
+time
+```
+
+Diagnostic topic if client count publishing is enabled:
+
+```bash
+/foxglove_bridge/client_count
+```
+
+---
+
+### Foxglove Security Notes
+
+- TLS/WSS can be enabled if needed.
+- If TLS is enabled, both `certfile` and `keyfile` must be provided.
+- Asset URI allowlists should be configured carefully so sensitive files are not exposed.
+- Foxglove bridge blocks unsafe URI paths with consecutive `..`.
+
+---
+
+### Building Foxglove Bridge From Source
+
+Only do this if the apt install method does not work.
+
+Clone the Foxglove SDK:
+
+```bash
+git clone https://github.com/foxglove/foxglove-sdk
+```
+
+Go to the ROS directory:
+
+```bash
+cd foxglove-sdk/ros
+```
+
+Build:
+
+```bash
+make
+```
+
+If Foxglove bridge was built outside the ROS workspace, source the setup file:
+
+```bash
+source install/local_setup.bash
+```
+
+Build Docker image:
+
+```bash
+make docker-build
+```
+
+Run tests:
+
+```bash
+make test
+```
+
+Docs:
+
+```bash
+https://docs.foxglove.dev/docs/visualization/ros-foxglove-bridge
+https://github.com/foxglove/foxglove-sdk
+```
+
+---
+
+## 23. Full Camera, LiDAR, Sensor Fusion, and Foxglove Workflow
+
+Use this when starting visualization from scratch.
+
+---
+
+### Terminal 1: Camera
+
+```bash
+cd ~/david/real-last-try
+bash launch_camera_host.sh
+```
+
+---
+
+### Terminal 2: LiDAR
+
+```bash
+cd ~/david/real-last-try
+bash launch_lidar_foxy_host.sh 99
+```
+
+---
+
+### Terminal 3: Sensor Fusion Docker
+
+```bash
+cd ~/sensorfusion/ros2_camera_lidar_fusion/docker
+bash run.sh
+```
+
+Inside the container:
+
+```bash
+ros2 topic list
+ros2 topic echo /oak/rgb/image_raw
+ros2 topic echo /livox/lidar
+```
+
+---
+
+### Terminal 4: Foxglove Bridge
+
+```bash
+ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765
+```
+
+Then open Foxglove and connect to:
+
+```bash
+ws://<JETSON_IP>:8765
+```
+
+---
+
+## 24. Running the Car with ROS Keyboard Teleop
+
+This uses one terminal for the DonkeyCar vehicle loop and another terminal for ROS keyboard teleop.
+
+---
+
+### Terminal 1: DonkeyCar Vehicle Loop
+
+```bash
+source ~/donkey/bin/activate
+cd ~/projects/mycars/path_follower
+python manage_ros_drive.py --drivetrain
+```
+
+---
+
+### Terminal 2: ROS Keyboard Teleop
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+ros2 run robocar_drive_bridge keyboard_teleop
+```
+
+Keyboard controls:
+
+```bash
+W = increase throttle
+A = decrease throttle / reverse if throttle becomes negative
+S = decrease steering toward -1
+D = increase steering toward 1
+```
+
+---
+
+## 25. Path Following and PID
+
+Open the config file:
+
+```bash
+cd ~/projects/mycars/path_follower
+vim myconfig.py
+```
+
+Start the car normally:
+
+```bash
+source ~/donkey/bin/activate
+cd ~/projects/mycars/path_follower
+python manage.py drive --js
+```
+
+Path recording workflow:
+
+1. Click the right trigger at least twice on the controller to record the `(0, 0)` origin point of the car.
+2. Click the left trigger to start recording the path to follow.
+3. Drive the car forward and then through a right turn.
+
+If the car goes out of control, lift it by the two back wheels.
+
+This can happen when path following is malfunctioning.
+
+---
+
+## 26. GPS and Septentrio
+
+The GPS is directly connected through USB. It does not need a custom node for raw USB access, but a GPS driver is needed to publish GPS coordinates into ROS 2.
+
+The GPS flow is:
+
+1. Read GPS from USB.
+2. Use the GPS driver to publish GPS data into ROS 2.
+3. Create a ROS 2 navigation topic.
+4. Let Foxglove subscribe to the ROS 2 navigation topic.
+
+---
+
+### Check Raw GPS Over Serial
+
+Run:
+
+```bash
+sudo picocom -b 115200 /dev/ttyACM3
+```
+
+This should load GPS coordinates. You may need to run the command a few times.
+
+If `/dev/ttyACM3` is wrong, check USB devices:
+
+```bash
+ls /dev/ttyACM*
+```
+
+Then retry with the correct device.
+
+---
+
+### Show Raw Septentrio Topic
+
+Run this on the Jetson.
+
+Terminal 1:
+
+```bash
+cd ~/dsc190_ws
+source /opt/ros/foxy/setup.bash
+ros2 launch septentrio_gnss_driver rover.py file_name:=septentrio.yaml
+```
+
+Terminal 2:
+
+```bash
+cd ~/dsc190_ws
+source /opt/ros/foxy/setup.bash
+ros2 topic list | grep -E 'navsatfix|gpsfix|pvt'
+ros2 topic hz /pvtgeodetic
+ros2 topic echo /pvtgeodetic
+```
+
+The command that actually shows the streaming `-20000000000.0` values is:
+
+```bash
+ros2 topic echo /pvtgeodetic
+```
+
+---
+
+## 27. Common Troubleshooting
+
+### USB Devices Not Detected
+
+Check devices:
+
+```bash
+ls /dev/ttyACM*
+```
+
+If missing, unplug and replug the USB cables.
+
+---
+
+### USB Devices Swapped
+
+If USB ports are changed, device names may swap.
+
+Check devices:
+
+```bash
+ls /dev/ttyACM*
+```
+
+Run DonkeyCar to inspect USB output:
+
+```bash
+cd ~/projects/mycars/path_follower
+python3 manage.py drive
+```
+
+Then update serial paths in:
+
+```bash
+nano ~/projects/mycars/path_follower/myconfig.py
+```
+
+Known device types:
+
+```bash
+Septentrio = GPS
+ChibiOS = VESC
+```
+
+---
+
+### Joystick Not Working
+
+Check joystick device:
+
+```bash
+jstest /dev/input/js0
+```
+
+Run mapping test:
+
+```bash
+cd ~/projects/mycars/path_follower
+python3 test_js0_mapping.py
+```
+
+If the controller does not respond, power cycle the receiver cable.
+
+---
+
+### Receiver Blinking Red
+
+If the receiver is blinking red, it is not properly paired with the controller.
+
+Fix the controller pairing before running:
+
+```bash
+python manage.py drive --js
+```
+
+---
+
+### Foxglove Bridge Package Not Found
+
+If this fails:
+
+```bash
+sudo apt install ros-humble-foxglove-bridge
+```
+
+Run:
+
+```bash
+sudo apt update
+```
+
+Then retry:
+
+```bash
+sudo apt install ros-humble-foxglove-bridge
+```
+
+---
+
+### Foxglove Running but Topics Missing
+
+Check ROS topics:
+
+```bash
+ros2 topic list
+```
+
+Make sure these are present:
+
+```bash
+/oak/rgb/image_raw
+/livox/lidar
+/livox/imu
+```
+
+If they are missing, restart the camera and LiDAR nodes.
+
+---
+
+### Camera Topic Check
+
+```bash
+ros2 topic echo /oak/rgb/image_raw
+```
+
+Expected behavior: raw image message data streams in the terminal.
+
+---
+
+### LiDAR Topic Check
+
+```bash
+ros2 topic echo /livox/lidar
+```
+
+Expected behavior: point cloud message data streams in the terminal.
+
+---
+
+### Sensor Fusion Output Missing
+
+Inside the sensor fusion container:
+
+```bash
+cd /ros2_ws
+ros2 topic list
+```
+
+Check for:
+
+```bash
+/sensorfusion_out
+```
+
+If missing, rerun calibration or relaunch sensor fusion:
+
+```bash
+bash launch.sh 1
+bash launch.sh 2
+```
+
+Then check again:
+
+```bash
+ros2 topic echo /sensorfusion_out
+```
+
+---
+
+## 28. Useful Paths
+
+DonkeyCar path follower:
+
+```bash
+~/projects/mycars/path_follower
+```
+
+DonkeyCar container directory:
+
+```bash
+~/donkeycontainer
+```
+
+Camera and LiDAR node repository:
+
+```bash
+~/david/real-last-try
+```
+
+Sensor fusion repository:
+
+```bash
+~/sensorfusion/ros2_camera_lidar_fusion
+```
+
+Sensor fusion Docker directory:
+
+```bash
+~/sensorfusion/ros2_camera_lidar_fusion/docker
+```
+
+Sensor fusion config directory:
+
+```bash
+~/sensorfusion/ros2_camera_lidar_fusion/config
+```
+
+ROS 2 workspace:
+
+```bash
+~/dsc190_ws
+```
+
+---
+
+## 29. Useful Files
+
+DonkeyCar main runner:
+
+```bash
+manage.py
+```
+
+DonkeyCar ROS runner:
+
+```bash
+manage_ros_drive.py
+```
+
+Car configuration:
+
+```bash
+myconfig.py
+```
+
+Joystick configuration:
+
+```bash
+my_joystick.py
+```
+
+Joystick mapping test:
+
+```bash
+test_js0_mapping.py
+```
+
+Camera intrinsic calibration:
+
+```bash
+camera_intrinsic_calibration.yaml
+```
+
+Camera extrinsic calibration:
+
+```bash
+camera_extrinsic_calibration.yaml
+```
+
+Septentrio config:
+
+```bash
+septentrio.yaml
+```
+
+Working versions:
+
+```bash
+WORKING_VERSIONS.txt
+```
+
+---
+
+## 30. Useful References
+
+Foxglove bridge documentation:
+
+```bash
+https://docs.foxglove.dev/docs/visualization/ros-foxglove-bridge
+```
+
+Foxglove SDK repository:
+
+```bash
+https://github.com/foxglove/foxglove-sdk
+```
+
+Terminal output workflow reference:
+
+```bash
+https://docs.google.com/document/d/1OQKwKXm2MO3m6HLtvVt6QCz0qEVv-6aCSwUk-aFW8tI/edit?tab=t.6sq152crbhdf
+```
+
+---
+
+## 31. Future Work Notes
+
+Potential future direction:
+
+```bash
+vision language action model
+```
+
+This likely refers to adding a VLA-style model on top of the current car stack after the core driving, sensor, GPS, and visualization pipeline is stable.
