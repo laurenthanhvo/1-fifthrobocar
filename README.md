@@ -1425,6 +1425,390 @@ Potential future direction:
 
 ```bash
 vision language action model
+
+## Accessing the Jetson File System from VS Code
+
+This section explains how to open and browse the Jetson file system directly from a local computer using VS Code Remote SSH.
+
+> **Note:** Do not commit passwords or private credentials to a public GitHub repository. Replace any private IPs/passwords with placeholders if this README will be public.
+
+---
+
+### 1. Install the VS Code Remote SSH Extension
+
+On your local computer:
+
+1. Open VS Code.
+2. Go to the Extensions tab.
+3. Search for:
+
+```text
+Remote - SSH
+```
+
+4. Install the extension published by Microsoft.
+
+---
+
+### 2. Find the Jetson IP Address
+
+If you are on the Jetson directly, run:
+
+```bash
+myip
+```
+
+Or run:
+
+```bash
+ip addr show wlan0
+```
+
+Look for the `inet` field. The IP address should look something like:
+
+```text
+192.168.139.178
+```
+
+---
+
+### 3. Test SSH from Your Local Terminal
+
+Before using VS Code, confirm that SSH works from your local computer.
+
+```bash
+ssh jetson@<JETSON_IP>
+```
+
+Example:
+
+```bash
+ssh jetson@192.168.139.178
+```
+
+Enter the Jetson password when prompted.
+
+If this works, VS Code Remote SSH should also work.
+
+---
+
+### 4. Add the Jetson as a VS Code SSH Host
+
+In VS Code:
+
+1. Press:
+
+```text
+Cmd + Shift + P
+```
+
+2. Search for:
+
+```text
+Remote-SSH: Add New SSH Host
+```
+
+3. Enter the SSH command:
+
+```bash
+ssh jetson@<JETSON_IP>
+```
+
+Example:
+
+```bash
+ssh jetson@192.168.139.178
+```
+
+4. When VS Code asks which SSH config file to update, select your user config file:
+
+```text
+/Users/<your-local-username>/.ssh/config
+```
+
+Example:
+
+```text
+/Users/laurenvo/.ssh/config
+```
+
+Do **not** select:
+
+```text
+/etc/ssh/ssh_config
+```
+
+---
+
+### 5. Confirm the SSH Config Entry
+
+VS Code should add an entry similar to this:
+
+```sshconfig
+Host ucsd-agx-03
+    HostName 192.168.139.178
+    User jetson
+```
+
+You can also manually edit this file:
+
+```bash
+nano ~/.ssh/config
+```
+
+A good SSH config entry is:
+
+```sshconfig
+Host ucsd-agx-03
+    HostName <JETSON_IP>
+    User jetson
+```
+
+Example:
+
+```sshconfig
+Host ucsd-agx-03
+    HostName 192.168.139.178
+    User jetson
+```
+
+---
+
+### 6. Connect to the Jetson from VS Code
+
+In VS Code:
+
+1. Press:
+
+```text
+Cmd + Shift + P
+```
+
+2. Search for:
+
+```text
+Remote-SSH: Connect to Host
+```
+
+3. Select:
+
+```text
+ucsd-agx-03
+```
+
+or select the Jetson IP if that is what appears.
+
+4. If VS Code asks for the platform, choose:
+
+```text
+Linux
+```
+
+5. Enter the Jetson password when prompted.
+
+Once connected, VS Code is now running remotely on the Jetson.
+
+---
+
+### 7. Open the Jetson File System
+
+After connecting, VS Code will ask you to open a folder.
+
+To open the main project folder, enter:
+
+```text
+/home/jetson/projects/mycars
+```
+
+Then click:
+
+```text
+OK
+```
+
+This folder contains the DonkeyCar projects, including:
+
+```text
+/home/jetson/projects/mycars/path_follower
+/home/jetson/projects/mycars/cv_lane_follower
+```
+
+Useful files to inspect include:
+
+```text
+/home/jetson/projects/mycars/path_follower/myconfig.py
+/home/jetson/projects/mycars/cv_lane_follower/myconfig.py
+/home/jetson/projects/mycars/cv_lane_follower/manage.py
+/home/jetson/projects/mycars/cv_lane_follower/oak_camera.py
+```
+
+---
+
+### 8. Open the Entire Jetson Home Directory
+
+To browse more of the Jetson file system, open:
+
+```text
+/home/jetson
+```
+
+This lets you access folders such as:
+
+```text
+/home/jetson/projects
+/home/jetson/donkey
+/home/jetson/dsc190_ws
+/home/jetson/sensorfusion
+```
+
+---
+
+### 9. Open the Installed DonkeyCar Package
+
+The installed DonkeyCar source code is located inside the Python environment:
+
+```text
+/home/jetson/donkey/lib/python3.8/site-packages/donkeycar
+```
+
+Useful template files include:
+
+```text
+/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/cv_control.py
+/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/path_follow.py
+/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/cfg_cv_control.py
+/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/cfg_path_follow.py
+/home/jetson/donkey/lib/python3.8/site-packages/donkeycar/templates/complete.py
+```
+
+In general, avoid editing the installed DonkeyCar package directly. Instead, edit the local project files under:
+
+```text
+/home/jetson/projects/mycars
+```
+
+---
+
+### 10. Important VS Code Notes
+
+If the folder picker says:
+
+```text
+/home/jetson/
+```
+
+you can manually type the folder path you want, such as:
+
+```text
+/home/jetson/projects/mycars
+```
+
+Then click:
+
+```text
+OK
+```
+
+Do **not** click:
+
+```text
+Show Local
+```
+
+because that switches the file browser back to your local computer instead of the Jetson.
+
+---
+
+### 11. Troubleshooting
+
+#### Permission denied when connecting
+
+If VS Code shows:
+
+```text
+Permission denied (publickey,password)
+```
+
+make sure the SSH config includes the correct user:
+
+```sshconfig
+User jetson
+```
+
+The full config should look like:
+
+```sshconfig
+Host ucsd-agx-03
+    HostName <JETSON_IP>
+    User jetson
+```
+
+Then reconnect using:
+
+```text
+Remote-SSH: Connect to Host
+```
+
+---
+
+#### Wrong IP address
+
+If the Jetson IP changed, run this on the Jetson:
+
+```bash
+myip
+```
+
+or:
+
+```bash
+ip addr show wlan0
+```
+
+Then update your local SSH config:
+
+```bash
+nano ~/.ssh/config
+```
+
+Update:
+
+```sshconfig
+HostName <NEW_JETSON_IP>
+```
+
+---
+
+#### Test SSH manually
+
+From your local terminal:
+
+```bash
+ssh jetson@<JETSON_IP>
+```
+
+If this does not work, VS Code Remote SSH will not work either.
+
+---
+
+#### Remote folder does not show expected files
+
+Make sure you opened the correct folder:
+
+```text
+/home/jetson/projects/mycars
+```
+
+not your local computer folder.
+
+You should see:
+
+```text
+path_follower
+cv_lane_follower
+```
+
+in the VS Code file explorer.
 ```
 
 This likely refers to adding a VLA-style model on top of the current car stack after the core driving, sensor, GPS, and visualization pipeline is stable.
