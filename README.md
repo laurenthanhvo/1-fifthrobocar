@@ -45,12 +45,6 @@ Example:
 ssh -x jetson@192.168.139.178
 ```
 
-Password:
-
-```bash
-jetsonucsd
-```
-
 If using X forwarding:
 
 ```bash
