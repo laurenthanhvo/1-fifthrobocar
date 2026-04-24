@@ -2077,6 +2077,478 @@ https://docs.google.com/document/d/1OQKwKXm2MO3m6HLtvVt6QCz0qEVv-6aCSwUk-aFW8tI/
 
 ---
 
+## ROS 2 Lane Detection Progress
+
+This section documents the ROS 2 lane detection pipeline that was tested while the VESC/controller were not reliable. This does **not** drive the car yet. It only reads the OAK camera image, detects lane markings, and publishes lane-center error values.
+
+---
+
+### Goal
+
+The goal is to use classical computer vision, not deep learning, to detect lane markings from the OAK camera.
+
+Current pipeline:
+
+```text
+/oak/rgb/image_raw
+        ↓
+lane_follower ROS 2 node
+        ↓
+detect colored line(s)
+        ↓
+compute center error
+        ↓
+publish debug topics
+```
+
+For now, this is perception-only. The output will later be connected to steering once the drivetrain/VESC is working reliably.
+
+---
+
+## 1. Start the OAK Camera Node
+
+Open Terminal 1:
+
+```bash
+cd ~/david/real-last-try
+bash launch_camera_host.sh
+```
+
+Expected output should include something like:
+
+```text
+Camera device initialized successfully
+Publishing RGB frames on /oak/rgb/image_raw
+```
+
+The camera publishes:
+
+```text
+/oak/rgb/image_raw
+```
+
+---
+
+## 2. Source ROS 2 and the Workspace
+
+Open a new terminal:
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+```
+
+Check that the camera topic exists:
+
+```bash
+ros2 topic list
+```
+
+Expected topic:
+
+```text
+/oak/rgb/image_raw
+```
+
+---
+
+## 3. Lane Follower Package Location
+
+The lane follower package is located at:
+
+```bash
+~/dsc190_ws/src/lane_follower
+```
+
+Important files:
+
+```text
+~/dsc190_ws/src/lane_follower/lane_follower/one_line_follower.py
+~/dsc190_ws/src/lane_follower/lane_follower/two_line_follower.py
+~/dsc190_ws/src/lane_follower/setup.py
+```
+
+---
+
+## 4. Build the Lane Follower Package
+
+After editing any lane follower file, rebuild:
+
+```bash
+cd ~/dsc190_ws
+source /opt/ros/foxy/setup.bash
+colcon build --packages-select lane_follower
+source ~/dsc190_ws/install/setup.bash
+```
+
+Check that ROS sees the executables:
+
+```bash
+ros2 pkg executables lane_follower
+```
+
+Expected output:
+
+```text
+lane_follower one_line_follower
+lane_follower two_line_follower
+```
+
+---
+
+## 5. One-Line Detection
+
+The one-line detector follows one colored line and publishes the line-center error.
+
+Run for a blue line:
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+
+ros2 run lane_follower one_line_follower --ros-args -p color:=blue
+```
+
+Run for a yellow line:
+
+```bash
+ros2 run lane_follower one_line_follower --ros-args -p color:=yellow
+```
+
+Run for a green line:
+
+```bash
+ros2 run lane_follower one_line_follower --ros-args -p color:=green
+```
+
+Expected startup output:
+
+```text
+One-line follower started.
+Subscribing to: /oak/rgb/image_raw
+Publishing debug image to: /lane/debug_image
+Publishing mask to: /lane/mask
+Publishing center error to: /lane/center_error
+```
+
+---
+
+### One-Line Output Topics
+
+Check topics:
+
+```bash
+ros2 topic list | grep lane
+```
+
+Expected topics:
+
+```text
+/lane/center_error
+/lane/debug_image
+/lane/mask
+```
+
+Check the one-line center error:
+
+```bash
+ros2 topic echo /lane/center_error
+```
+
+Interpretation:
+
+```text
+error near 0      = line is centered
+negative error    = line is left of the target center
+positive error    = line is right of the target center
+```
+
+Example values observed:
+
+```text
+data: -0.025
+data: 0.000
+data: 0.031
+```
+
+---
+
+## 6. Two-Line Lane Detection
+
+The two-line detector detects a left lane boundary and a right lane boundary, then computes the midpoint between them.
+
+Run for two blue lane lines:
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+
+ros2 run lane_follower two_line_follower --ros-args -p color:=blue
+```
+
+Run for two yellow lane lines:
+
+```bash
+ros2 run lane_follower two_line_follower --ros-args -p color:=yellow
+```
+
+Run for two green lane lines:
+
+```bash
+ros2 run lane_follower two_line_follower --ros-args -p color:=green
+```
+
+Expected startup output:
+
+```text
+Two-line follower started.
+Subscribing to: /oak/rgb/image_raw
+Publishing debug image to: /lane/two_line_debug_image
+Publishing mask to: /lane/two_line_mask
+Publishing center error to: /lane/two_line_center_error
+Publishing detected flag to: /lane/two_line_detected
+Saving debug images to: /tmp/lane_debug
+```
+
+---
+
+### Two-Line Output Topics
+
+Check the center error:
+
+```bash
+ros2 topic echo /lane/two_line_center_error
+```
+
+Check whether both lanes are detected:
+
+```bash
+ros2 topic echo /lane/two_line_detected
+```
+
+Expected detection output:
+
+```text
+data: true
+```
+
+The node also logs the detected lane centers:
+
+```text
+BOTH LANES | error=-0.081 | L=124 | R=464
+BOTH LANES | error=-0.055 | L=124 | R=481
+```
+
+Where:
+
+```text
+L = detected left lane x-position
+R = detected right lane x-position
+error = normalized center error
+```
+
+---
+
+## 7. How Two-Line Error Works
+
+The two-line detector computes:
+
+```text
+lane_center_x = (left_line_x + right_line_x) / 2
+image_center_x = image_width / 2
+
+error = (lane_center_x - image_center_x) / image_center_x
+```
+
+Interpretation:
+
+```text
+error near 0      = car/camera is centered between the two lanes
+negative error    = computed lane center is left of image center
+positive error    = computed lane center is right of image center
+```
+
+Example observation:
+
+```text
+Initial error: -0.08125
+After moving the right lane farther right: -0.053125
+```
+
+This means the lane midpoint moved closer to the image center because the error moved closer to zero.
+
+---
+
+## 8. Debug Images
+
+Since live image viewing was not reliable over the current setup, the two-line follower saves debug images to:
+
+```bash
+/tmp/lane_debug
+```
+
+Check saved files:
+
+```bash
+ls -lh /tmp/lane_debug
+```
+
+Expected files:
+
+```text
+two_line_debug.jpg
+two_line_mask.png
+```
+
+Open these files in VS Code Remote SSH:
+
+```text
+/tmp/lane_debug/two_line_debug.jpg
+/tmp/lane_debug/two_line_mask.png
+```
+
+The debug image should show:
+
+```text
+cyan box        = region of interest
+white line      = image center
+green dots      = detected lane centers
+magenta line    = computed lane center
+text overlay    = lane detection status and error
+```
+
+The mask image should show:
+
+```text
+white pixels = detected tape/lane color
+black pixels = background
+```
+
+---
+
+## 9. Recommended Terminal Layout
+
+### Terminal 1: Camera
+
+```bash
+cd ~/david/real-last-try
+bash launch_camera_host.sh
+```
+
+### Terminal 2: Lane Detector
+
+For one-line detection:
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+
+ros2 run lane_follower one_line_follower --ros-args -p color:=blue
+```
+
+For two-line detection:
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+
+ros2 run lane_follower two_line_follower --ros-args -p color:=blue
+```
+
+### Terminal 3: Check Error Output
+
+For one line:
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+
+ros2 topic echo /lane/center_error
+```
+
+For two lines:
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+
+ros2 topic echo /lane/two_line_center_error
+```
+
+Check whether both lanes are detected:
+
+```bash
+ros2 topic echo /lane/two_line_detected
+```
+
+### Terminal 4: Check Saved Debug Images
+
+```bash
+ls -lh /tmp/lane_debug
+```
+
+Open in VS Code Remote SSH:
+
+```text
+/tmp/lane_debug/two_line_debug.jpg
+/tmp/lane_debug/two_line_mask.png
+```
+
+---
+
+## 10. Current Status
+
+What works:
+
+```text
+OAK camera publishes /oak/rgb/image_raw
+lane_follower package builds successfully
+one_line_follower runs
+two_line_follower runs
+/lane/center_error publishes one-line error
+/lane/two_line_center_error publishes two-line midpoint error
+/lane/two_line_detected reports whether both lane lines are detected
+debug images are saved to /tmp/lane_debug
+```
+
+What is not connected yet:
+
+```text
+No steering command is being sent to the car yet
+No throttle command is being sent to the car yet
+VESC/drivetrain issue still needs to be fixed before autonomous driving
+Remote controller pairing still needs to be fixed separately
+```
+
+---
+
+## 11. Next Step
+
+Once VESC/manual driving is reliable, connect the two-line center error to steering.
+
+Basic control idea:
+
+```python
+steering = Kp * error + Kd * (error - previous_error)
+```
+
+Where:
+
+```text
+error = /lane/two_line_center_error
+```
+
+Start with:
+
+```text
+manual throttle
+autonomous steering only
+low speed
+wheels ready to be lifted for safety
+```
+
+---
+
 # 28. Future Work
 
 Potential future directions:
