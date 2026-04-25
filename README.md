@@ -2077,35 +2077,70 @@ https://docs.google.com/document/d/1OQKwKXm2MO3m6HLtvVt6QCz0qEVv-6aCSwUk-aFW8tI/
 
 ---
 
-## ROS 2 Lane Detection Progress
+---
 
-This section documents the ROS 2 lane detection pipeline that was tested while the VESC/controller were not reliable. This does **not** drive the car yet. It only reads the OAK camera image, detects lane markings, and publishes lane-center error values.
+# 28. ROS 2 Lane Detection Progress
+
+This section documents the ROS 2 lane detection work completed while the VESC/controller were not reliable. This pipeline does **not** drive the car yet. It only reads the OAK camera image, detects lane markings, computes lane-center error, publishes debug topics, and saves debug images for inspection.
 
 ---
 
-### Goal
+## 28.1 Goal
 
-The goal is to use classical computer vision, not deep learning, to detect lane markings from the OAK camera.
+The goal is to use **classical computer vision**, not deep learning, to detect lane markings from the OAK camera.
 
-Current pipeline:
+Current perception-only pipeline:
 
 ```text
 /oak/rgb/image_raw
         ↓
-lane_follower ROS 2 node
+lane_follower ROS 2 package
         ↓
-detect colored line(s)
+detect colored lane markings
         ↓
-compute center error
+compute lane center error
         ↓
-publish debug topics
+publish debug topics and save debug images
 ```
 
-For now, this is perception-only. The output will later be connected to steering once the drivetrain/VESC is working reliably.
+This will later be connected to steering once the VESC/drivetrain and controller issues are fixed.
 
 ---
 
-## 1. Start the OAK Camera Node
+## 28.2 What Was Completed
+
+Completed so far:
+
+```text
+Created ROS 2 lane_follower package
+Implemented one-line detection
+Implemented two-line lane detection
+Implemented fitted two-line detection
+Implemented curved-path lane detection
+Recorded OAK camera data with rosbag
+Verified lane-center error topics update correctly
+Saved debug images to /tmp for inspection
+```
+
+The lane follower package is located at:
+
+```bash
+~/dsc190_ws/src/lane_follower
+```
+
+Important files:
+
+```text
+~/dsc190_ws/src/lane_follower/lane_follower/one_line_follower.py
+~/dsc190_ws/src/lane_follower/lane_follower/two_line_follower.py
+~/dsc190_ws/src/lane_follower/lane_follower/two_line_fit_follower.py
+~/dsc190_ws/src/lane_follower/lane_follower/curved_lane_follower.py
+~/dsc190_ws/src/lane_follower/setup.py
+```
+
+---
+
+## 28.3 Start the OAK Camera Node
 
 Open Terminal 1:
 
@@ -2114,7 +2149,7 @@ cd ~/david/real-last-try
 bash launch_camera_host.sh
 ```
 
-Expected output should include something like:
+Expected output should include:
 
 ```text
 Camera device initialized successfully
@@ -2127,9 +2162,19 @@ The camera publishes:
 /oak/rgb/image_raw
 ```
 
+If the camera disconnects and reconnects, the node may print something like:
+
+```text
+Camera disconnected during operation
+Camera connection lost. Will attempt to reconnect...
+Camera reconnected successfully
+```
+
+If this happens repeatedly, restart the camera node.
+
 ---
 
-## 2. Source ROS 2 and the Workspace
+## 28.4 Source ROS 2 and the Workspace
 
 Open a new terminal:
 
@@ -2150,29 +2195,23 @@ Expected topic:
 /oak/rgb/image_raw
 ```
 
----
-
-## 3. Lane Follower Package Location
-
-The lane follower package is located at:
+Optional camera rate check:
 
 ```bash
-~/dsc190_ws/src/lane_follower
+ros2 topic hz /oak/rgb/image_raw
 ```
 
-Important files:
+Stop with:
 
 ```text
-~/dsc190_ws/src/lane_follower/lane_follower/one_line_follower.py
-~/dsc190_ws/src/lane_follower/lane_follower/two_line_follower.py
-~/dsc190_ws/src/lane_follower/setup.py
+Ctrl-C
 ```
 
 ---
 
-## 4. Build the Lane Follower Package
+## 28.5 Build the Lane Follower Package
 
-After editing any lane follower file, rebuild:
+After editing any file in the `lane_follower` package, rebuild:
 
 ```bash
 cd ~/dsc190_ws
@@ -2187,20 +2226,74 @@ Check that ROS sees the executables:
 ros2 pkg executables lane_follower
 ```
 
-Expected output:
+Expected output after all current nodes are added:
 
 ```text
 lane_follower one_line_follower
 lane_follower two_line_follower
+lane_follower two_line_fit_follower
+lane_follower curved_lane_follower
 ```
 
 ---
 
-## 5. One-Line Detection
+## 28.6 Fix Duplicate Package Build Error
 
-The one-line detector follows one colored line and publishes the line-center error.
+If `colcon build` fails with:
 
-Run for a blue line:
+```text
+Duplicate package names not supported:
+- lane_follower:
+  - backups/lane_follower_backup_...
+  - src/lane_follower
+```
+
+it means a backup copy of the package is still inside the workspace. Move backups completely outside `~/dsc190_ws`:
+
+```bash
+mkdir -p ~/ros_backups
+mv ~/dsc190_ws/backups/lane_follower_backup_* ~/ros_backups/
+```
+
+If the backup is still inside `src`, move it out:
+
+```bash
+mkdir -p ~/ros_backups
+mv ~/dsc190_ws/src/lane_follower_backup_* ~/ros_backups/
+```
+
+Then rebuild:
+
+```bash
+cd ~/dsc190_ws
+source /opt/ros/foxy/setup.bash
+colcon build --packages-select lane_follower
+source ~/dsc190_ws/install/setup.bash
+```
+
+Check for package files inside the workspace:
+
+```bash
+find ~/dsc190_ws -name package.xml
+```
+
+There should only be one `lane_follower/package.xml` under:
+
+```text
+/home/jetson/dsc190_ws/src/lane_follower/package.xml
+```
+
+---
+
+# 29. One-Line Detection
+
+The one-line detector finds one colored line and computes its error from the image center.
+
+---
+
+## 29.1 Run One-Line Detection
+
+For a blue line:
 
 ```bash
 source /opt/ros/foxy/setup.bash
@@ -2209,13 +2302,13 @@ source ~/dsc190_ws/install/setup.bash
 ros2 run lane_follower one_line_follower --ros-args -p color:=blue
 ```
 
-Run for a yellow line:
+For a yellow line:
 
 ```bash
 ros2 run lane_follower one_line_follower --ros-args -p color:=yellow
 ```
 
-Run for a green line:
+For a green line:
 
 ```bash
 ros2 run lane_follower one_line_follower --ros-args -p color:=green
@@ -2233,15 +2326,15 @@ Publishing center error to: /lane/center_error
 
 ---
 
-### One-Line Output Topics
+## 29.2 Check One-Line Output Topics
 
-Check topics:
+Check lane topics:
 
 ```bash
 ros2 topic list | grep lane
 ```
 
-Expected topics:
+Expected one-line topics:
 
 ```text
 /lane/center_error
@@ -2249,7 +2342,7 @@ Expected topics:
 /lane/mask
 ```
 
-Check the one-line center error:
+Check the center error:
 
 ```bash
 ros2 topic echo /lane/center_error
@@ -2273,11 +2366,15 @@ data: 0.031
 
 ---
 
-## 6. Two-Line Lane Detection
+# 30. Basic Two-Line Lane Detection
 
-The two-line detector detects a left lane boundary and a right lane boundary, then computes the midpoint between them.
+The basic two-line detector detects a left lane boundary and a right lane boundary, then computes the midpoint between them.
 
-Run for two blue lane lines:
+---
+
+## 30.1 Run Two-Line Detection
+
+For two blue lane lines:
 
 ```bash
 source /opt/ros/foxy/setup.bash
@@ -2286,13 +2383,13 @@ source ~/dsc190_ws/install/setup.bash
 ros2 run lane_follower two_line_follower --ros-args -p color:=blue
 ```
 
-Run for two yellow lane lines:
+For two yellow lane lines:
 
 ```bash
 ros2 run lane_follower two_line_follower --ros-args -p color:=yellow
 ```
 
-Run for two green lane lines:
+For two green lane lines:
 
 ```bash
 ros2 run lane_follower two_line_follower --ros-args -p color:=green
@@ -2312,9 +2409,9 @@ Saving debug images to: /tmp/lane_debug
 
 ---
 
-### Two-Line Output Topics
+## 30.2 Check Two-Line Output Topics
 
-Check the center error:
+Check the two-line center error:
 
 ```bash
 ros2 topic echo /lane/two_line_center_error
@@ -2349,7 +2446,7 @@ error = normalized center error
 
 ---
 
-## 7. How Two-Line Error Works
+## 30.3 How Two-Line Error Works
 
 The two-line detector computes:
 
@@ -2379,9 +2476,9 @@ This means the lane midpoint moved closer to the image center because the error 
 
 ---
 
-## 8. Debug Images
+## 30.4 Basic Two-Line Debug Images
 
-Since live image viewing was not reliable over the current setup, the two-line follower saves debug images to:
+The basic two-line detector saves debug images to:
 
 ```bash
 /tmp/lane_debug
@@ -2400,7 +2497,7 @@ two_line_debug.jpg
 two_line_mask.png
 ```
 
-Open these files in VS Code Remote SSH:
+Open these in VS Code Remote SSH:
 
 ```text
 /tmp/lane_debug/two_line_debug.jpg
@@ -2426,62 +2523,558 @@ black pixels = background
 
 ---
 
-## 9. Recommended Terminal Layout
+# 31. Fitted Two-Line Lane Detection
 
-### Terminal 1: Camera
+The fitted two-line detector improves on the basic two-line detector. Instead of only using centroids, it fits a line to each lane boundary and computes the lane center at a lookahead row.
+
+This is useful for cleaner straight or slightly curved paths.
+
+---
+
+## 31.1 Run Fitted Two-Line Detection
+
+For blue tape:
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+
+ros2 run lane_follower two_line_fit_follower --ros-args \
+  -p color:=blue \
+  -p roi_y_start:=0.70 \
+  -p roi_y_end:=1.00 \
+  -p min_pixels:=150
+```
+
+For yellow tape:
+
+```bash
+ros2 run lane_follower two_line_fit_follower --ros-args \
+  -p color:=yellow \
+  -p roi_y_start:=0.70 \
+  -p roi_y_end:=1.00 \
+  -p min_pixels:=150
+```
+
+Expected startup output:
+
+```text
+Two-line fitted lane follower started.
+Subscribing to: /oak/rgb/image_raw
+Publishing /lane/v2_center_error
+Publishing /lane/v2_fake_steering
+Saving debug images to /tmp/lane_debug_v2
+```
+
+---
+
+## 31.2 Check Fitted Two-Line Output Topics
+
+Check available topics:
+
+```bash
+ros2 topic list | grep lane
+```
+
+Expected fitted detector topics:
+
+```text
+/lane/v2_center_error
+/lane/v2_fake_steering
+/lane/v2_debug_image
+/lane/v2_mask
+/lane/v2_detected
+```
+
+Check lane center error:
+
+```bash
+ros2 topic echo /lane/v2_center_error
+```
+
+Check fake steering command:
+
+```bash
+ros2 topic echo /lane/v2_fake_steering
+```
+
+Check detection status:
+
+```bash
+ros2 topic echo /lane/v2_detected
+```
+
+Expected detection output:
+
+```text
+data: true
+```
+
+---
+
+## 31.3 Fitted Two-Line Debug Images
+
+The fitted detector saves debug images to:
+
+```bash
+/tmp/lane_debug_v2
+```
+
+Check saved files:
+
+```bash
+ls -lh /tmp/lane_debug_v2
+```
+
+Expected files:
+
+```text
+lane_v2_debug.jpg
+lane_v2_mask.png
+```
+
+Open these in VS Code Remote SSH:
+
+```text
+/tmp/lane_debug_v2/lane_v2_debug.jpg
+/tmp/lane_debug_v2/lane_v2_mask.png
+```
+
+The debug image should show:
+
+```text
+green lines             = fitted left/right lane boundaries
+green dots              = detected lane positions at the lookahead row
+magenta/pink line       = computed lane center
+white vertical line     = image center
+yellow horizontal line  = lookahead row
+text overlay            = detection status, error, and fake steering
+```
+
+The mask image should show:
+
+```text
+white pixels = detected tape/lane color
+black pixels = background
+```
+
+---
+
+## 31.4 Tune the Fitted Detector
+
+If the detector misses the lanes, use a wider ROI:
+
+```bash
+ros2 run lane_follower two_line_fit_follower --ros-args \
+  -p color:=blue \
+  -p roi_y_start:=0.55 \
+  -p roi_y_end:=1.00 \
+  -p min_pixels:=100
+```
+
+If the detector sees too much background noise, use a lower/tighter ROI:
+
+```bash
+ros2 run lane_follower two_line_fit_follower --ros-args \
+  -p color:=blue \
+  -p roi_y_start:=0.80 \
+  -p roi_y_end:=1.00 \
+  -p min_pixels:=200
+```
+
+If blue detection is too weak, use a broader custom HSV threshold:
+
+```bash
+ros2 run lane_follower two_line_fit_follower --ros-args \
+  -p color:=custom \
+  -p h_low:=85 \
+  -p s_low:=30 \
+  -p v_low:=30 \
+  -p h_high:=140 \
+  -p s_high:=255 \
+  -p v_high:=255 \
+  -p roi_y_start:=0.70 \
+  -p roi_y_end:=1.00 \
+  -p min_pixels:=150
+```
+
+If it detects too much background, tighten the blue threshold:
+
+```bash
+ros2 run lane_follower two_line_fit_follower --ros-args \
+  -p color:=custom \
+  -p h_low:=95 \
+  -p s_low:=80 \
+  -p v_low:=80 \
+  -p h_high:=125 \
+  -p s_high:=255 \
+  -p v_high:=255 \
+  -p roi_y_start:=0.70 \
+  -p roi_y_end:=1.00 \
+  -p min_pixels:=150
+```
+
+---
+
+# 32. Curved Lane Detection
+
+The curved lane detector is the current best perception node. It is designed to work for both straight paths and curved paths.
+
+Instead of fitting one straight line to each lane boundary, it:
+
+```text
+1. Scans multiple horizontal bands in the image
+2. Finds left and right lane positions in each band
+3. Computes center points between the lanes
+4. Fits a centerline curve through the center points
+5. Chooses a lookahead target point
+6. Computes center error and fake steering
+```
+
+This should handle paths that transition between straight and curved sections.
+
+---
+
+## 32.1 Run Curved Lane Detection
+
+For blue tape:
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+
+ros2 run lane_follower curved_lane_follower --ros-args \
+  -p color:=blue \
+  -p roi_y_start:=0.45 \
+  -p roi_y_end:=1.00 \
+  -p num_bands:=8 \
+  -p min_pixels_per_band:=20 \
+  -p lookahead_y_fraction:=0.75
+```
+
+For yellow tape:
+
+```bash
+ros2 run lane_follower curved_lane_follower --ros-args \
+  -p color:=yellow \
+  -p roi_y_start:=0.45 \
+  -p roi_y_end:=1.00 \
+  -p num_bands:=8 \
+  -p min_pixels_per_band:=20 \
+  -p lookahead_y_fraction:=0.75
+```
+
+Expected startup output:
+
+```text
+Curved lane follower started.
+Subscribing to: /oak/rgb/image_raw
+Publishing /lane/curved_center_error
+Publishing /lane/curved_fake_steering
+Saving debug images to /tmp/lane_debug_curved
+```
+
+---
+
+## 32.2 Check Curved Lane Output Topics
+
+Check center error:
+
+```bash
+ros2 topic echo /lane/curved_center_error
+```
+
+Check fake steering:
+
+```bash
+ros2 topic echo /lane/curved_fake_steering
+```
+
+Check detection status:
+
+```bash
+ros2 topic echo /lane/curved_detected
+```
+
+Expected detection output:
+
+```text
+data: true
+```
+
+---
+
+## 32.3 Curved Lane Debug Images
+
+The curved lane detector saves debug images to:
+
+```bash
+/tmp/lane_debug_curved
+```
+
+Check saved files:
+
+```bash
+ls -lh /tmp/lane_debug_curved
+```
+
+Expected files:
+
+```text
+curved_lane_debug.jpg
+curved_lane_mask.png
+```
+
+Open these in VS Code Remote SSH:
+
+```text
+/tmp/lane_debug_curved/curved_lane_debug.jpg
+/tmp/lane_debug_curved/curved_lane_mask.png
+```
+
+The debug image should show:
+
+```text
+green dots              = detected left/right lane points at multiple rows
+pink dots               = computed lane center points
+pink curve              = fitted centerline
+yellow horizontal line  = lookahead row
+yellow dot              = lookahead target point for steering
+white vertical line     = image center
+text overlay            = error, fake steering, and number of center points
+```
+
+The mask image should show:
+
+```text
+white pixels = detected tape/lane color
+black pixels = background
+```
+
+---
+
+## 32.4 Tune the Curved Lane Detector
+
+If the curved path is not detected well, use a larger ROI:
+
+```bash
+ros2 run lane_follower curved_lane_follower --ros-args \
+  -p color:=blue \
+  -p roi_y_start:=0.35 \
+  -p roi_y_end:=1.00 \
+  -p num_bands:=10 \
+  -p min_pixels_per_band:=15 \
+  -p lookahead_y_fraction:=0.70
+```
+
+If the detector sees too much noise, make the ROI stricter:
+
+```bash
+ros2 run lane_follower curved_lane_follower --ros-args \
+  -p color:=blue \
+  -p roi_y_start:=0.55 \
+  -p roi_y_end:=1.00 \
+  -p num_bands:=8 \
+  -p min_pixels_per_band:=40 \
+  -p lookahead_y_fraction:=0.75
+```
+
+If blue thresholding needs tuning, use custom HSV:
+
+```bash
+ros2 run lane_follower curved_lane_follower --ros-args \
+  -p color:=custom \
+  -p h_low:=85 \
+  -p s_low:=30 \
+  -p v_low:=30 \
+  -p h_high:=140 \
+  -p s_high:=255 \
+  -p v_high:=255 \
+  -p roi_y_start:=0.45 \
+  -p roi_y_end:=1.00 \
+  -p num_bands:=8 \
+  -p min_pixels_per_band:=20 \
+  -p lookahead_y_fraction:=0.75
+```
+
+---
+
+# 33. Recording and Replaying Lane Data
+
+Rosbag can be used to record camera data once, then replay it later without moving or driving the car.
+
+---
+
+## 33.1 Record OAK Camera Data
+
+Make sure the camera node is running.
+
+Then open another terminal:
+
+```bash
+mkdir -p ~/lane_data
+
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+
+ros2 bag record -o ~/lane_data/two_lane_test_$(date +%Y%m%d_%H%M%S) /oak/rgb/image_raw
+```
+
+Move the car by hand or move the lane tape by hand for 20–30 seconds.
+
+Stop recording:
+
+```text
+Ctrl-C
+```
+
+Example recorded bag path:
+
+```text
+/home/jetson/lane_data/two_lane_test_20260424_153907
+```
+
+---
+
+## 33.2 Replay Recorded Camera Data
+
+Stop the live camera node if needed.
+
+Replay the bag:
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+
+ros2 bag play --loop ~/lane_data/<BAG_FOLDER_NAME>
+```
+
+Example:
+
+```bash
+ros2 bag play --loop ~/lane_data/two_lane_test_20260424_153907
+```
+
+Then run a detector in another terminal:
+
+```bash
+source /opt/ros/foxy/setup.bash
+source ~/dsc190_ws/install/setup.bash
+
+ros2 run lane_follower curved_lane_follower --ros-args \
+  -p color:=blue \
+  -p roi_y_start:=0.45 \
+  -p roi_y_end:=1.00 \
+  -p num_bands:=8 \
+  -p min_pixels_per_band:=20 \
+  -p lookahead_y_fraction:=0.75
+```
+
+This allows detector tuning without using the VESC or remote controller.
+
+---
+
+# 34. Recommended Lane Detection Terminal Layout
+
+Use this layout for the current perception-only workflow.
+
+---
+
+## Terminal 1: Camera
 
 ```bash
 cd ~/david/real-last-try
 bash launch_camera_host.sh
 ```
 
-### Terminal 2: Lane Detector
+---
 
-For one-line detection:
+## Terminal 2: Lane Detector
 
-```bash
-source /opt/ros/foxy/setup.bash
-source ~/dsc190_ws/install/setup.bash
-
-ros2 run lane_follower one_line_follower --ros-args -p color:=blue
-```
-
-For two-line detection:
+Current recommended detector:
 
 ```bash
 source /opt/ros/foxy/setup.bash
 source ~/dsc190_ws/install/setup.bash
 
-ros2 run lane_follower two_line_follower --ros-args -p color:=blue
+ros2 run lane_follower curved_lane_follower --ros-args \
+  -p color:=blue \
+  -p roi_y_start:=0.45 \
+  -p roi_y_end:=1.00 \
+  -p num_bands:=8 \
+  -p min_pixels_per_band:=20 \
+  -p lookahead_y_fraction:=0.75
 ```
 
-### Terminal 3: Check Error Output
-
-For one line:
+For the fitted straight-lane detector:
 
 ```bash
 source /opt/ros/foxy/setup.bash
 source ~/dsc190_ws/install/setup.bash
 
-ros2 topic echo /lane/center_error
+ros2 run lane_follower two_line_fit_follower --ros-args \
+  -p color:=blue \
+  -p roi_y_start:=0.70 \
+  -p roi_y_end:=1.00 \
+  -p min_pixels:=150
 ```
 
-For two lines:
+---
+
+## Terminal 3: Check Error Output
+
+For the curved detector:
 
 ```bash
 source /opt/ros/foxy/setup.bash
 source ~/dsc190_ws/install/setup.bash
 
-ros2 topic echo /lane/two_line_center_error
+ros2 topic echo /lane/curved_center_error
 ```
 
-Check whether both lanes are detected:
+Check fake steering:
 
 ```bash
-ros2 topic echo /lane/two_line_detected
+ros2 topic echo /lane/curved_fake_steering
 ```
 
-### Terminal 4: Check Saved Debug Images
+Check detection:
+
+```bash
+ros2 topic echo /lane/curved_detected
+```
+
+---
+
+## Terminal 4: Check Debug Images
+
+For curved detector:
+
+```bash
+ls -lh /tmp/lane_debug_curved
+```
+
+Open in VS Code Remote SSH:
+
+```text
+/tmp/lane_debug_curved/curved_lane_debug.jpg
+/tmp/lane_debug_curved/curved_lane_mask.png
+```
+
+For fitted detector:
+
+```bash
+ls -lh /tmp/lane_debug_v2
+```
+
+Open in VS Code Remote SSH:
+
+```text
+/tmp/lane_debug_v2/lane_v2_debug.jpg
+/tmp/lane_debug_v2/lane_v2_mask.png
+```
+
+For basic two-line detector:
 
 ```bash
 ls -lh /tmp/lane_debug
@@ -2496,7 +3089,39 @@ Open in VS Code Remote SSH:
 
 ---
 
-## 10. Current Status
+# 35. How to Interpret Lane Error
+
+The lane detectors compute a normalized error:
+
+```text
+error = (lane_center_x - image_center_x) / image_center_x
+```
+
+Interpretation:
+
+```text
+error near 0      = lane center is aligned with image center
+negative error    = lane center appears left of image center
+positive error    = lane center appears right of image center
+```
+
+Example:
+
+```text
+error = -0.4
+```
+
+means the lane center is significantly left of the image center.
+
+For future control:
+
+```text
+If the steering direction is wrong, flip the sign of Kp.
+```
+
+---
+
+# 36. Current Lane Detection Status
 
 What works:
 
@@ -2505,10 +3130,15 @@ OAK camera publishes /oak/rgb/image_raw
 lane_follower package builds successfully
 one_line_follower runs
 two_line_follower runs
+two_line_fit_follower runs
+curved_lane_follower runs
 /lane/center_error publishes one-line error
-/lane/two_line_center_error publishes two-line midpoint error
-/lane/two_line_detected reports whether both lane lines are detected
-debug images are saved to /tmp/lane_debug
+/lane/two_line_center_error publishes basic two-line midpoint error
+/lane/v2_center_error publishes fitted two-line midpoint error
+/lane/curved_center_error publishes curve-aware center error
+fake steering outputs are published for fitted and curved detectors
+debug images are saved to /tmp folders
+rosbag recording works for /oak/rgb/image_raw
 ```
 
 What is not connected yet:
@@ -2522,9 +3152,9 @@ Remote controller pairing still needs to be fixed separately
 
 ---
 
-## 11. Next Step
+# 37. Next Step After VESC/Controller Are Fixed
 
-Once VESC/manual driving is reliable, connect the two-line center error to steering.
+Once manual driving is reliable, connect the lane-center error to steering.
 
 Basic control idea:
 
@@ -2532,30 +3162,41 @@ Basic control idea:
 steering = Kp * error + Kd * (error - previous_error)
 ```
 
-Where:
+Recommended starting workflow:
 
 ```text
-error = /lane/two_line_center_error
+1. Use manual throttle.
+2. Let lane detector control steering only.
+3. Keep speed very low.
+4. Keep the car ready to be lifted for safety.
+5. If steering goes the wrong way, flip the sign of Kp.
 ```
 
-Start with:
+Start with the curved detector because it should handle both straight and curved paths:
 
-```text
-manual throttle
-autonomous steering only
-low speed
-wheels ready to be lifted for safety
+```bash
+ros2 run lane_follower curved_lane_follower --ros-args \
+  -p color:=blue \
+  -p roi_y_start:=0.45 \
+  -p roi_y_end:=1.00 \
+  -p num_bands:=8 \
+  -p min_pixels_per_band:=20 \
+  -p lookahead_y_fraction:=0.75
 ```
 
 ---
 
-# 28. Future Work
+# 38. Updated Future Work
 
 Potential future directions:
 
-- Improve line following using camera-based CV.
-- Add a robust lane-following algorithm that detects two lane boundaries and follows the midpoint.
-- Integrate camera, LiDAR, and GPS into a stronger navigation stack.
+- Connect lane-center error to steering through the ROS drive bridge.
+- Test autonomous steering with manual throttle first.
+- Add low constant throttle only after steering is stable.
+- Tune PID gains for lane centering.
+- Improve robustness to lighting changes and shadows.
+- Add better color threshold tuning for different track surfaces.
+- Add support for non-blue/non-yellow lane markings.
+- Integrate LiDAR or GPS only after camera lane following is stable.
 - Add obstacle detection using LiDAR.
-- Improve Foxglove layouts for live debugging.
-- Add a VLA-style model after the core driving, sensor, GPS, and visualization pipeline is stable.
+- Compare classical CV lane following with freespace segmentation later.
