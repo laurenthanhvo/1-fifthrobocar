@@ -38,7 +38,17 @@ This document explains how to power on the car, SSH into the Jetson, access the 
 25. [Useful Paths](#25-useful-paths)
 26. [Useful Files](#26-useful-files)
 27. [Useful References](#27-useful-references)
-28. [Future Work](#28-future-work)
+28. [ROS 2 Lane Detection Progress](#28-ros-2-lane-detection-progress)
+29. [One-Line Detection](#29-one-line-detection)
+30. [Basic Two-Line Lane Detection](#30-basic-two-line-lane-detection)
+31. [Fitted Two-Line Lane Detection](#31-fitted-two-line-lane-detection)
+32. [Curved Lane Detection](#32-curved-lane-detection)
+33. [Recording and Replaying Lane Data](#33-recording-and-replaying-lane-data)
+34. [Recommended Lane Detection Terminal Layout](#34-recommended-lane-detection-terminal-layout)
+35. [How to Interpret Lane Error](#35-how-to-interpret-lane-error)
+36. [Current Lane Detection Status](#36-current-lane-detection-status)
+37. [Next Step After VESC/Controller Are Fixed](#37-next-step-after-vesccontroller-are-fixed)
+38. [Updated Future Work](#38-updated-future-work)
 
 ---
 
