@@ -1311,7 +1311,7 @@ Build the workspace:
 colcon build
 ```
 
-Run the built package directory if needed:
+Source the build file for data collection:
 
 ```bash
 source install/setup.bash
