@@ -1314,7 +1314,8 @@ colcon build
 Run the built package directory if needed:
 
 ```bash
-./build/ros2_camera_lidar_fusion/
+source install/setup.bash
+bash launch.sh 1
 ```
 
 ---
