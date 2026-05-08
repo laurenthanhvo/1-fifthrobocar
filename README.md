@@ -22,7 +22,7 @@ This document explains how to power on the car, SSH into the Jetson, access the 
 9. [Editing Files on the Jetson](#9-editing-files-on-the-jetson)
 10. [DonkeyCar Project Setup](#10-donkeycar-project-setup)
 11. [Running the Car with DonkeyCar](#11-running-the-car-with-donkeycar)
-12. [DonkeyCar Web UI](#12-donkeycar-web-ui)
+12. [DonkeyCar Web UI](#12-donkeycar-web-ui) 
 13. [Joystick and Remote Control](#13-joystick-and-remote-control)
 14. [DonkeyCar Configuration Notes](#14-donkeycar-configuration-notes)
 15. [Path Following and PID](#15-path-following-and-pid)
@@ -46,9 +46,7 @@ This document explains how to power on the car, SSH into the Jetson, access the 
 33. [Recording and Replaying Lane Data](#33-recording-and-replaying-lane-data)
 34. [Recommended Lane Detection Terminal Layout](#34-recommended-lane-detection-terminal-layout)
 35. [How to Interpret Lane Error](#35-how-to-interpret-lane-error)
-36. [Current Lane Detection Status](#36-current-lane-detection-status)
-37. [Next Step After VESC/Controller Are Fixed](#37-next-step-after-vesccontroller-are-fixed)
-38. [Updated Future Work](#38-updated-future-work)
+36. [How to Start DonkeyCar CV Auto Drive](#39-how-to-start-donkeycar-cv-auto-drive)
 
 ---
 
@@ -3132,82 +3130,77 @@ If the steering direction is wrong, flip the sign of Kp.
 
 ---
 
-# 36. Current Lane Detection Status
+# 36. How to Start DonkeyCar CV Auto Drive
 
-What works:
+This section explains how to start the DonkeyCar computer-vision auto-driving setup from the `lane_boundary_cv` project.
 
-```text
-OAK camera publishes /oak/rgb/image_raw
-lane_follower package builds successfully
-one_line_follower runs
-two_line_follower runs
-two_line_fit_follower runs
-curved_lane_follower runs
-/lane/center_error publishes one-line error
-/lane/two_line_center_error publishes basic two-line midpoint error
-/lane/v2_center_error publishes fitted two-line midpoint error
-/lane/curved_center_error publishes curve-aware center error
-fake steering outputs are published for fitted and curved detectors
-debug images are saved to /tmp folders
-rosbag recording works for /oak/rgb/image_raw
-```
+## 36.1 Start the CV Auto Drive Project
 
-What is not connected yet:
-
-```text
-No steering command is being sent to the car yet
-No throttle command is being sent to the car yet
-VESC/drivetrain issue still needs to be fixed before autonomous driving
-Remote controller pairing still needs to be fixed separately
-```
-
----
-
-# 37. Next Step After VESC/Controller Are Fixed
-
-Once manual driving is reliable, connect the lane-center error to steering.
-
-Basic control idea:
-
-```python
-steering = Kp * error + Kd * (error - previous_error)
-```
-
-Recommended starting workflow:
-
-```text
-1. Use manual throttle.
-2. Let lane detector control steering only.
-3. Keep speed very low.
-4. Keep the car ready to be lifted for safety.
-5. If steering goes the wrong way, flip the sign of Kp.
-```
-
-Start with the curved detector because it should handle both straight and curved paths:
+Activate the DonkeyCar environment:
 
 ```bash
-ros2 run lane_follower curved_lane_follower --ros-args \
-  -p color:=blue \
-  -p roi_y_start:=0.45 \
-  -p roi_y_end:=1.00 \
-  -p num_bands:=8 \
-  -p min_pixels_per_band:=20 \
-  -p lookahead_y_fraction:=0.75
+source ~/donkey/bin/activate
 ```
 
----
+Go to the CV lane boundary project:
 
-# 38. Updated Future Work
+```bash
+cd ~/projects/mycars/lane_boundary_cv
+```
 
-Potential future directions:
+Start DonkeyCar:
 
-- Connect lane-center error to steering through the ROS drive bridge.
-- Test autonomous steering with manual throttle first.
-- Add low constant throttle only after steering is stable.
-- Tune PID gains for lane centering.
-- Improve robustness to lighting changes and shadows.
-- Add better color threshold tuning for different track surfaces.
-- Add support for non-blue/non-yellow lane markings.
-- Integrate LiDAR or GPS only after camera lane following is stable.
-- Add obstacle detection using LiDAR.
-- Compare classical CV lane following with freespace segmentation later.
+```bash
+python manage.py drive
+```
+
+After DonkeyCar starts, open the web UI in a browser:
+
+http://ucsd-agx-03.local:8887/drive
+
+If .local does not work, use the Jetson IP instead:
+
+http://<JETSON_IP>:8887/drive
+
+Example:
+
+http://192.168.139.178:8887/drive
+
+If the terminal prints a different web UI link, use the link shown in the terminal.
+
+## 36.2 CV Auto Drive Modes
+
+In the DonkeyCar web UI:
+
+(U)ser        = manual driving
+Auto (S)teer = CV pipeline controls steering, user controls throttle
+Full (A)uto  = CV pipeline controls both steering and throttle
+
+Use:
+
+Auto (S)teer
+
+to display the lane detection output and colored guide lines while still manually controlling throttle.
+
+Use:
+
+Full (A)uto
+
+to let the car drive on its own using the CV lane-following pipeline.
+
+## 36.3 Stopping the Car
+
+To hard stop or immediately take back control, switch the web UI back to:
+
+(U)ser
+
+This exits autonomous control and returns control to the user.
+
+You can also stop the DonkeyCar process from the terminal with:
+
+Ctrl-C
+## 36.4 Safety Notes
+Start in Auto (S)teer before using Full (A)uto.
+Verify that the lane detection and colored guide lines look correct before allowing the car to drive itself.
+Keep the car on a clear track with enough space.
+Be ready to switch back to (U)ser immediately if the car behaves unexpectedly.
