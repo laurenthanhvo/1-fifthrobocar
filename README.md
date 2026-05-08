@@ -46,7 +46,7 @@ This document explains how to power on the car, SSH into the Jetson, access the 
 33. [Recording and Replaying Lane Data](#33-recording-and-replaying-lane-data)
 34. [Recommended Lane Detection Terminal Layout](#34-recommended-lane-detection-terminal-layout)
 35. [How to Interpret Lane Error](#35-how-to-interpret-lane-error)
-36. [How to Start DonkeyCar CV Auto Drive](#39-how-to-start-donkeycar-cv-auto-drive)
+36. [How to Start DonkeyCar CV Auto Drive](#36-how-to-start-donkeycar-cv-auto-drive)
 
 ---
 
@@ -3155,50 +3155,51 @@ python manage.py drive
 ```
 
 After DonkeyCar starts, open the web UI in a browser:
-
+```bash
 http://ucsd-agx-03.local:8887/drive
-
+```
 If .local does not work, use the Jetson IP instead:
-
+```bash
 http://<JETSON_IP>:8887/drive
-
+```
 Example:
-
+```bash
 http://192.168.139.178:8887/drive
-
+```
 If the terminal prints a different web UI link, use the link shown in the terminal.
 
 ## 36.2 CV Auto Drive Modes
 
 In the DonkeyCar web UI:
-
+```bash
 (U)ser        = manual driving
 Auto (S)teer = CV pipeline controls steering, user controls throttle
 Full (A)uto  = CV pipeline controls both steering and throttle
-
+```
 Use:
-
+```bash
 Auto (S)teer
-
+```
 to display the lane detection output and colored guide lines while still manually controlling throttle.
 
 Use:
-
+```bash
 Full (A)uto
-
+```
 to let the car drive on its own using the CV lane-following pipeline.
 
 ## 36.3 Stopping the Car
 
 To hard stop or immediately take back control, switch the web UI back to:
-
+```bash
 (U)ser
-
+```
 This exits autonomous control and returns control to the user.
 
 You can also stop the DonkeyCar process from the terminal with:
-
+```bash
 Ctrl-C
+```
 ## 36.4 Safety Notes
 Start in Auto (S)teer before using Full (A)uto.
 Verify that the lane detection and colored guide lines look correct before allowing the car to drive itself.
