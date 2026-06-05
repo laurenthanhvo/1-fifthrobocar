@@ -32,8 +32,6 @@ from donkeycar.parts.explode import ExplodeDict
 from donkeycar.parts.controller import JoystickController
 #from obstacle_avoidance import ObstacleDetector, ObstacleAvoider
 
-from obstacle_avoidance_yolo_lidar import YoloLidarObstacleDetector, ObstacleAvoider
-
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -161,28 +159,12 @@ def drive(cfg, use_joystick=False, camera_type='single', meta=[]):
     #             run_condition=btn)
     # 
     
-
-    #
-    # View buttons for DonkeyCar web UI
-    #
-    view_button_map = [
-        ("VIEW_RAW_BTN", "set_view_raw", "Button 1 -> raw RGB"),
-        ("VIEW_LANE_BTN", "set_view_lane", "Button 2 -> bird's-eye lane + original obstacle stop"),
-        ("VIEW_OBSTACLE_BTN", "set_view_obstacle", "Button 3 -> obstacle detection view"),
-        ("VIEW_TRACKER_BTN", "set_view_tracker", "Button 4 -> DepthAI object tracker view slot"),
-        ("VIEW_DEPTH_BTN", "set_view_depth", "Button 5 -> depth/stereo heatmap"),
-    ]
-
-    for cfg_name, method_name, label in view_button_map:
-        btn = getattr(cfg, cfg_name, None)
-        if btn and btn.startswith("web/w") and hasattr(cv_part, method_name):
-            print(f"{label} is {btn}")
-            V.add(
-                Lambda(lambda m=method_name: getattr(cv_part, m)()),
-                run_condition=btn,
-            )
-
-
+    if getattr(cfg, "DEPTH_FULLSCREEN_BTN", None):
+        btn = cfg.DEPTH_FULLSCREEN_BTN
+        if btn.startswith("web/w") and hasattr(cv_part, "toggle_fullscreen_depth"):
+            V.add(Lambda(lambda: cv_part.toggle_fullscreen_depth()),
+                run_condition=btn)
+    
        # -----------------------------------------------------------------------
     # Computer Vision Controller (lane follower)
     # Sets pilot/steering and pilot/throttle
@@ -270,39 +252,6 @@ def drive(cfg, use_joystick=False, camera_type='single', meta=[]):
             V.add(Lambda(lambda: inc_pid_d()), run_condition=cfg.INC_PID_D_BTN)
         elif have_joystick:
             ctr.set_button_down_trigger(cfg.INC_PID_D_BTN, inc_pid_d)
-
-
-    #
-    # YOLO + LiDAR obstacle detector
-    # Runs after lane following and before DriveMode so it can override throttle.
-    #
-    if getattr(cfg, "USE_YOLO_LIDAR_OBSTACLE", False):
-        yolo_lidar_detector = YoloLidarObstacleDetector(cfg)
-        V.add(
-            yolo_lidar_detector,
-            inputs=["cam/image_array", "cv/image_array"],
-            outputs=[
-                "obstacle/detected",
-                "obstacle/distance",
-                "obstacle/height",
-                "obstacle/label",
-                "cv/image_array",
-            ],
-            run_condition="run_pilot",
-        )
-
-        obstacle_avoider = ObstacleAvoider(cfg)
-        V.add(
-            obstacle_avoider,
-            inputs=[
-                "pilot/steering",
-                "pilot/throttle",
-                "obstacle/detected",
-                "obstacle/distance",
-            ],
-            outputs=["pilot/steering", "pilot/throttle"],
-            run_condition="run_pilot",
-        )
 
     #
     # Decide what inputs should change the car's steering and throttle
