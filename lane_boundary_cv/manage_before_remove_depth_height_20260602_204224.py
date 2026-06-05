@@ -7,7 +7,6 @@ Scripts to drive on autopilot using computer vision
 Usage:
     manage.py (drive) [--js] [--log=INFO] [--camera=(single|stereo)] [--myconfig=<filename>]
 
-
 Options:
     -h --help          Show this screen.
     --js               Use physical joystick.
@@ -32,11 +31,8 @@ from donkeycar.parts.explode import ExplodeDict
 from donkeycar.parts.controller import JoystickController
 #from obstacle_avoidance import ObstacleDetector, ObstacleAvoider
 
-from obstacle_avoidance_yolo_lidar import YoloLidarObstacleDetector, ObstacleAvoider
-
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-
 
 def drive(cfg, use_joystick=False, camera_type='single', meta=[]):
     '''
@@ -91,15 +87,20 @@ def drive(cfg, use_joystick=False, camera_type='single', meta=[]):
     # )
     from oak_camera_depth import OakCameraDepth
     V.add(OakCameraDepth(
-    image_w=cfg.IMAGE_W,
-    image_h=cfg.IMAGE_H,
-    fps=cfg.DRIVE_LOOP_HZ,
-    undistort=getattr(cfg, "OAK_UNDISTORT", False),
-    calibration_file=getattr(cfg, "OAK_CALIBRATION_FILE", None),
-    undistort_alpha=getattr(cfg, "OAK_UNDISTORT_ALPHA", 0.0),
-  ),
-  outputs=["cam/image_array", "cam/depth_array"],  # depth added
-  threaded=True,
+        image_w=cfg.IMAGE_W,
+        image_h=cfg.IMAGE_H,
+        fps=cfg.DRIVE_LOOP_HZ,
+        undistort=getattr(cfg, "OAK_UNDISTORT", False),
+        calibration_file=getattr(cfg, "OAK_CALIBRATION_FILE", None),
+        undistort_alpha=getattr(cfg, "OAK_UNDISTORT_ALPHA", 0.0),
+        depth_preset=getattr(cfg, "OAK_DEPTH_PRESET", "HIGH_ACCURACY"),
+      ),
+      outputs=[
+            "cam/image_array",
+            "cam/depth_array",
+            
+        ],  # now produces depth too
+      threaded=True,
 )
 
     #
@@ -145,44 +146,13 @@ def drive(cfg, use_joystick=False, camera_type='single', meta=[]):
     #
     # Computer Vision Controller
     #
-
-    cv_part = add_cv_controller(V, cfg, pid,
+    add_cv_controller(V, cfg, pid,
                       cfg.CV_CONTROLLER_MODULE,
                       cfg.CV_CONTROLLER_CLASS,
                       cfg.CV_CONTROLLER_INPUTS,
                       cfg.CV_CONTROLLER_OUTPUTS,
                       cfg.CV_CONTROLLER_CONDITION)
     
-    # ---- Mapping for heat map on button 1 ----- 
-    # if getattr(cfg, "DEPTH_OVERLAY_BTN", None):
-    #     btn = cfg.DEPTH_OVERLAY_BTN
-    #     if btn.startswith("web/w") and hasattr(cv_part, "toggle_depth_overlay"):
-    #         V.add(Lambda(lambda: cv_part.toggle_depth_overlay()),
-    #             run_condition=btn)
-    # 
-    
-
-    #
-    # View buttons for DonkeyCar web UI
-    #
-    view_button_map = [
-        ("VIEW_RAW_BTN", "set_view_raw", "Button 1 -> raw RGB"),
-        ("VIEW_LANE_BTN", "set_view_lane", "Button 2 -> bird's-eye lane + original obstacle stop"),
-        ("VIEW_OBSTACLE_BTN", "set_view_obstacle", "Button 3 -> obstacle detection view"),
-        ("VIEW_TRACKER_BTN", "set_view_tracker", "Button 4 -> DepthAI object tracker view slot"),
-        ("VIEW_DEPTH_BTN", "set_view_depth", "Button 5 -> depth/stereo heatmap"),
-    ]
-
-    for cfg_name, method_name, label in view_button_map:
-        btn = getattr(cfg, cfg_name, None)
-        if btn and btn.startswith("web/w") and hasattr(cv_part, method_name):
-            print(f"{label} is {btn}")
-            V.add(
-                Lambda(lambda m=method_name: getattr(cv_part, m)()),
-                run_condition=btn,
-            )
-
-
        # -----------------------------------------------------------------------
     # Computer Vision Controller (lane follower)
     # Sets pilot/steering and pilot/throttle
@@ -211,6 +181,7 @@ def drive(cfg, use_joystick=False, camera_type='single', meta=[]):
     # # and OVERWRITES them in vehicle memory if an obstacle is detected.
     # # Must come before DriveMode so DriveMode picks up the corrected values.
     # #
+    # obstacle_avoider = ObstacleAvoider(cfg)
     # V.add(
     #     obstacle_avoider,
     #     inputs=['pilot/steering', 'pilot/throttle',
@@ -220,10 +191,27 @@ def drive(cfg, use_joystick=False, camera_type='single', meta=[]):
     # )
     # ===== END INSERT =====
 
+    # ── YOLO + depth obstacle detection ──────────────────────────────
+    from obstacle_avoidance_yolo import YoloLidarObstacleDetector
+    from obstacle_avoidance import ObstacleAvoider
+
+    V.add(
+        YoloLidarObstacleDetector(cfg),
+        inputs=['cam/image_array', 'cam/depth_array', 'cv/image_array'],
+        outputs=['obstacle/detected', 'obstacle/distance', 'obstacle/position', 'cv/image_array'],
+        run_condition='run_pilot',
+    )
+    V.add(
+        ObstacleAvoider(cfg),
+        inputs=['pilot/steering', 'pilot/throttle',
+                'obstacle/detected', 'obstacle/distance', 'obstacle/position'],
+        outputs=['pilot/steering', 'pilot/throttle'],
+        run_condition='run_pilot',
+    )
+
     recording_control = ToggleRecording(cfg.AUTO_RECORD_ON_THROTTLE, cfg.RECORD_DURING_AI)
 
     V.add(recording_control, inputs=['user/mode', "recording"], outputs=["recording"])
-
 
     #
     # Add buttons for handling various user actions
@@ -271,39 +259,6 @@ def drive(cfg, use_joystick=False, camera_type='single', meta=[]):
         elif have_joystick:
             ctr.set_button_down_trigger(cfg.INC_PID_D_BTN, inc_pid_d)
 
-
-    #
-    # YOLO + LiDAR obstacle detector
-    # Runs after lane following and before DriveMode so it can override throttle.
-    #
-    if getattr(cfg, "USE_YOLO_LIDAR_OBSTACLE", False):
-        yolo_lidar_detector = YoloLidarObstacleDetector(cfg)
-        V.add(
-            yolo_lidar_detector,
-            inputs=["cam/image_array", "cv/image_array"],
-            outputs=[
-                "obstacle/detected",
-                "obstacle/distance",
-                "obstacle/height",
-                "obstacle/label",
-                "cv/image_array",
-            ],
-            run_condition="run_pilot",
-        )
-
-        obstacle_avoider = ObstacleAvoider(cfg)
-        V.add(
-            obstacle_avoider,
-            inputs=[
-                "pilot/steering",
-                "pilot/throttle",
-                "obstacle/detected",
-                "obstacle/distance",
-            ],
-            outputs=["pilot/steering", "pilot/throttle"],
-            run_condition="run_pilot",
-        )
-
     #
     # Decide what inputs should change the car's steering and throttle
     # based on the choice of user or autopilot drive mode
@@ -313,12 +268,10 @@ def drive(cfg, use_joystick=False, camera_type='single', meta=[]):
                   'pilot/steering', 'pilot/throttle'],
           outputs=['steering', 'throttle'])
 
-
     #
     # Setup drivetrain
     #
     add_drivetrain(V, cfg)
-
 
     #
     # OLED display setup
@@ -328,7 +281,6 @@ def drive(cfg, use_joystick=False, camera_type='single', meta=[]):
         auto_record_on_throttle = cfg.USE_JOYSTICK_AS_DEFAULT and cfg.AUTO_RECORD_ON_THROTTLE
         oled_part = OLEDPart(cfg.SSD1306_128_32_I2C_ROTATION, cfg.SSD1306_RESOLUTION, auto_record_on_throttle)
         V.add(oled_part, inputs=['recording', 'tub/num_records', 'user/mode'], outputs=[], threaded=True)
-
 
     #
     # add tub to save data
@@ -364,7 +316,6 @@ def drive(cfg, use_joystick=False, camera_type='single', meta=[]):
     V.start(rate_hz=cfg.DRIVE_LOOP_HZ, 
             max_loop_count=cfg.MAX_LOOPS)
 
-
 #
 # Computer Vision Controller
 #
@@ -386,13 +337,10 @@ def add_cv_controller(
         my_class = getattr(module, class_name)
 
         # add instance of class to vehicle
-        part = my_class(pid, cfg)
-        V.add(part,
+        V.add(my_class(pid, cfg),
               inputs=inputs,
               outputs=outputs,
               run_condition=run_condition)
-        return part
-
 
 if __name__ == '__main__':
     args = docopt(__doc__)
@@ -407,7 +355,6 @@ if __name__ == '__main__':
     if args['drive']:
         drive(cfg, use_joystick=args['--js'], camera_type=args['--camera'])
 
-
 #################################
 # manage_russel.py
 #################################
@@ -418,7 +365,6 @@ if __name__ == '__main__':
 
 # Usage:
 #     manage.py (drive) [--js] [--log=INFO] [--camera=(single|stereo)] [--myconfig=<filename>]
-
 
 # Options:
 #     -h --help          Show this screen.
@@ -445,7 +391,6 @@ if __name__ == '__main__':
 
 # logger = logging.getLogger(__name__)
 # logging.basicConfig(level=logging.INFO)
-
 
 # def drive(cfg, use_joystick=False, camera_type='single', meta=[]):
 #     '''
@@ -540,7 +485,6 @@ if __name__ == '__main__':
 #     recording_control = ToggleRecording(cfg.AUTO_RECORD_ON_THROTTLE, cfg.RECORD_DURING_AI)
 #     V.add(recording_control, inputs=['user/mode', "recording"], outputs=["recording"])
 
-
 #     #
 #     # Add buttons for handling various user actions
 #     # The button names are in configuration.
@@ -596,12 +540,10 @@ if __name__ == '__main__':
 #                   'pilot/steering', 'pilot/throttle'],
 #           outputs=['steering', 'throttle'])
 
-
 #     #
 #     # Setup drivetrain
 #     #
 #     add_drivetrain(V, cfg)
-
 
 #     #
 #     # OLED display setup
@@ -611,7 +553,6 @@ if __name__ == '__main__':
 #         auto_record_on_throttle = cfg.USE_JOYSTICK_AS_DEFAULT and cfg.AUTO_RECORD_ON_THROTTLE
 #         oled_part = OLEDPart(cfg.SSD1306_128_32_I2C_ROTATION, cfg.SSD1306_RESOLUTION, auto_record_on_throttle)
 #         V.add(oled_part, inputs=['recording', 'tub/num_records', 'user/mode'], outputs=[], threaded=True)
-
 
 #     #
 #     # add tub to save data
@@ -647,7 +588,6 @@ if __name__ == '__main__':
 #     V.start(rate_hz=cfg.DRIVE_LOOP_HZ, 
 #             max_loop_count=cfg.MAX_LOOPS)
 
-
 # #
 # # Computer Vision Controller
 # #
@@ -673,7 +613,6 @@ if __name__ == '__main__':
 #               inputs=inputs,
 #               outputs=outputs,
 #               run_condition=run_condition)
-
 
 # if __name__ == '__main__':
 #     args = docopt(__doc__)
