@@ -126,7 +126,7 @@ Do not set max speed too high while the car is off the ground. Without ground re
 ## Current Known Jetson IP
 
 ```bash
-192.168.139.178
+<ip-add>
 ```
 
 This IP may change depending on the network or hotspot.
@@ -150,13 +150,13 @@ Look for the `inet` field. The IP address is the first number string after `inet
 Example:
 
 ```text
-inet 192.168.139.178/24
+inet <ip-add>/24
 ```
 
 In this example, the Jetson IP is:
 
 ```bash
-192.168.139.178
+<ip-add>
 ```
 
 ---
@@ -172,7 +172,7 @@ ssh jetson@<JETSON_IP>
 Example:
 
 ```bash
-ssh jetson@192.168.139.178
+ssh jetson@<ip-add>
 ```
 
 If using X forwarding:
@@ -184,7 +184,7 @@ ssh -X jetson@<JETSON_IP>
 Example:
 
 ```bash
-ssh -X jetson@192.168.139.178
+ssh -X jetson@<ip-add>
 ```
 
 If you do not need X forwarding, use:
@@ -196,7 +196,7 @@ ssh -x jetson@<JETSON_IP>
 Example:
 
 ```bash
-ssh -x jetson@192.168.139.178
+ssh -x jetson@<ip-add>
 ```
 
 ---
@@ -266,7 +266,7 @@ ssh jetson@<JETSON_IP>
 Example:
 
 ```bash
-ssh jetson@192.168.139.178
+ssh jetson@<ip-add>
 ```
 
 If this works, VS Code Remote SSH should also work.
@@ -298,7 +298,7 @@ ssh jetson@<JETSON_IP>
 Example:
 
 ```bash
-ssh jetson@192.168.139.178
+ssh jetson@<ip-add>
 ```
 
 4. When VS Code asks which SSH config file to update, select your user config file:
@@ -335,7 +335,7 @@ Example:
 
 ```sshconfig
 Host ucsd-agx-03
-    HostName 192.168.139.178
+    HostName <ip-add>
     User jetson
 ```
 
@@ -798,7 +798,7 @@ http://<JETSON_IP>:8887/drive
 Example:
 
 ```text
-http://192.168.139.178:8887/drive
+http://<ip-add>:8887/drive
 ```
 
 Click:
@@ -1479,7 +1479,7 @@ ws://<JETSON_IP>:8765
 Example:
 
 ```text
-ws://192.168.139.178:8765
+ws://<ip-add>:8765
 ```
 
 If access is required, ask the team member with UCSD email access.
@@ -1815,7 +1815,7 @@ http://<JETSON_IP>:8887/drive
 Example:
 
 ```text
-http://192.168.139.178:8887/drive
+http://<ip-add>:8887/drive
 ```
 
 Check whether the server is listening:
@@ -3164,7 +3164,7 @@ http://<JETSON_IP>:8887/drive
 ```
 Example:
 ```bash
-http://192.168.139.178:8887/drive
+http://<ip-add>:8887/drive
 ```
 If the terminal prints a different web UI link, use the link shown in the terminal.
 
